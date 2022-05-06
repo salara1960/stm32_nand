@@ -33,10 +33,28 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <malloc.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <time.h>
+#include <math.h>
+#include <stdarg.h>
+#include <ctype.h>
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+
+enum {
+	devUART = 1,
+	devMEM,
+	devI2C,
+	devNAND
+};
 
 /* USER CODE END ET */
 
@@ -48,6 +66,7 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+#define MAX_UART_BUF 1024
 #define LOOP_FOREVER() while(1) { HAL_Delay(1); }
 
 /* USER CODE END EM */
@@ -60,7 +79,17 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define TX3_Pin GPIO_PIN_10
+#define TX3_GPIO_Port GPIOB
+#define RX3_Pin GPIO_PIN_11
+#define RX3_GPIO_Port GPIOB
+#define LED_ERR_Pin GPIO_PIN_13
+#define LED_ERR_GPIO_Port GPIOD
+#define LED_TIK_Pin GPIO_PIN_7
+#define LED_TIK_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
+
+UART_HandleTypeDef *uartPort;
 
 /* USER CODE END Private defines */
 

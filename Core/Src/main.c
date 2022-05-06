@@ -19,8 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
-#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,6 +34,21 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+const char *version = "ver.0.2 05.05.2022";
+
+const char *eol = "\r\n";
+uint32_t devError;
+
+volatile static uint32_t secCounter = 0;//period 1s
+volatile static uint64_t msCounter = 0;//period 250ms
+static char txBuf[MAX_UART_BUF] = {0};
+static char rxBuf[MAX_UART_BUF] = {0};
+uint8_t rxByte = 0;
+uint16_t ruk = 0;
+bool uartRdy = true;
+
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,31 +57,19 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_tx;
-
 RTC_HandleTypeDef hrtc;
 
 TIM_HandleTypeDef htim2;
 
-UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
+UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart3_tx;
 
 NAND_HandleTypeDef hnand1;
 
-/* Definitions for defTask */
-osThreadId_t defTaskHandle;
-const osThreadAttr_t defTask_attributes = {
-  .name = "defTask",
-  .stack_size = 2048 * 4,
-  .priority = (osPriority_t) osPriorityAboveNormal,
-};
-/* Definitions for binSem */
-osSemaphoreId_t binSemHandle;
-const osSemaphoreAttr_t binSem_attributes = {
-  .name = "binSem"
-};
 /* USER CODE BEGIN PV */
+
+TIM_HandleTypeDef *timePort = &htim2;
+UART_HandleTypeDef *logPort = &huart3;
 
 /* USER CODE END PV */
 
@@ -79,12 +80,11 @@ static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_RTC_Init(void);
 static void MX_FSMC_Init(void);
-static void MX_USART1_UART_Init(void);
-static void MX_I2C1_Init(void);
-void StartDefTask(void *argument);
-
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+void errLedOn(bool on);
+//int sec2str(char *st);
+uint8_t Report(uint8_t addTime, const char *fmt, ...);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,63 +124,45 @@ int main(void)
   MX_TIM2_Init();
   MX_RTC_Init();
   MX_FSMC_Init();
-  MX_USART1_UART_Init();
-  MX_I2C1_Init();
-  MX_FATFS_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  //HAL_Delay(1000);
+
+  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
+  HAL_Delay(500);
+  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_RESET);
+
+  // start timer2 + interrupt
+  HAL_TIM_Base_Start_IT(timePort);
+
+  HAL_UART_Receive_IT(logPort, &rxByte, 1);
+
+  HAL_Delay(1500);
+
+  Report(1, "[%s] Start all interrupts (%s)%s", __func__, version, eol);
+
 
   /* USER CODE END 2 */
 
-  /* Init scheduler */
-  osKernelInitialize();
-
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
-
-  /* Create the semaphores(s) */
-  /* creation of binSem */
-  binSemHandle = osSemaphoreNew(1, 1, &binSem_attributes);
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
-
-  /* Create the thread(s) */
-  /* creation of defTask */
-  defTaskHandle = osThreadNew(StartDefTask, NULL, &defTask_attributes);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
-
-  /* Start scheduler */
-  osKernelStart();
-
-  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  LOOP_FOREVER();
+  //LOOP_FOREVER();
 
-  //while (1)
-  //{
+  bool led = false;
+  while (1) {
+
+	  if (devError) led = true; else led = false;
+	  errLedOn(led);
+	  HAL_Delay(500);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  //}
+  }
   /* USER CODE END 3 */
 }
 
@@ -218,47 +200,13 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV16;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV8;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
 }
 
 /**
@@ -339,12 +287,12 @@ static void MX_TIM2_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
-
+  	  //  APB1 - 42MHz
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 41999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 124;
+  htim2.Init.Period = 249;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -369,35 +317,35 @@ static void MX_TIM2_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
+  * @brief USART3 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void MX_USART3_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN USART3_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+  /* USER CODE END USART3_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN USART3_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN USART3_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -408,16 +356,12 @@ static void MX_DMA_Init(void)
 {
 
   /* DMA controller clock enable */
-  __HAL_RCC_DMA2_CLK_ENABLE();
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
-  /* DMA1_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 3, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-  /* DMA2_Stream7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+  /* DMA1_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
 
 }
 
@@ -428,13 +372,35 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LED_ERR_Pin */
+  GPIO_InitStruct.Pin = LED_ERR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(LED_ERR_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_TIK_Pin */
+  GPIO_InitStruct.Pin = LED_TIK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(LED_TIK_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -494,26 +460,123 @@ static void MX_FSMC_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//-------------------------------------------------------------------------------------------
+void errLedOn(bool on)
+{
+	if (on)
+		HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);//LED ON
+	else
+		HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_RESET);//LED OFF
+}
+//------------------------------------------------------------------------------------
+uint32_t get_secCounter()
+{
+	return secCounter;
+}
+//-----------------------------------------------------------------------------
+void inc_secCounter()
+{
+	secCounter++;
+}
+//-----------------------------------------------------------------------------
+uint64_t get_msCounter()
+{
+	return msCounter;
+}
+//-----------------------------------------------------------------------------
+void inc_msCounter()
+{
+	msCounter++;
+}
+//------------------------------------------------------------------------------------------
+uint32_t get_tmr(uint32_t sec)
+{
+	return (get_secCounter() + sec);
+}
+//------------------------------------------------------------------------------------------
+bool check_tmr(uint32_t sec)
+{
+	return (get_secCounter() >= sec ? true : false);
+}
+//------------------------------------------------------------------------------------------
+uint64_t get_mstmr(uint64_t hs)
+{
+	return (get_msCounter() + hs);
+}
+//------------------------------------------------------------------------------------------
+bool check_mstmr(uint64_t hs)
+{
+	return (get_msCounter() >= hs ? true : false);
+}
+//-----------------------------------------------------------------------------------------
+int sec2str(char *st)
+{
+	uint32_t sec = get_secCounter();
+
+	uint32_t day = sec / (60 * 60 * 24);
+	sec %= (60 * 60 * 24);
+	uint32_t hour = sec / (60 * 60);
+	sec %= (60 * 60);
+	uint32_t min = sec / (60);
+	sec %= 60;
+
+	return (sprintf(st, "%lu.%02lu:%02lu:%02lu ", day, hour, min, sec));
+}
+//-------------------------------------------------------------------------------------------
+uint8_t Report(uint8_t addTime, const char *fmt, ...)
+{
+va_list args;
+size_t len = MAX_UART_BUF;
+int dl = 0;
+char *buf = &txBuf[0];
+
+	    *buf = '\0';
+		if (addTime) {
+			dl = sec2str(buf);
+			strcat(buf, "| ");
+			dl += 2;
+		}
+
+		va_start(args, fmt);
+		vsnprintf(buf + dl, len - dl, fmt, args);
+
+		uartRdy = false;
+		if (HAL_UART_Transmit_DMA(logPort, (uint8_t *)buf, strlen(buf)) != HAL_OK) devError |= devUART;
+		while (!uartRdy) HAL_Delay(1);
+		/*while (HAL_UART_GetState(logPort) != HAL_UART_STATE_READY) {
+			if (HAL_UART_GetState(logPort) == HAL_UART_STATE_BUSY_RX) break;
+			HAL_Delay(1);
+		}*/
+		va_end(args);
+
+	return 0;
+}
+//------------------------------------------------------------------------------------------
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if (huart->Instance == USART3) {// logPort - log
+		rxBuf[ruk++] = (char)rxByte;
+		if (rxByte == 0x0a) {//end of line
+			if (strstr(rxBuf, "restart")) {
+				NVIC_SystemReset();
+			}
+			ruk = 0;
+			memset(rxBuf, 0, MAX_UART_BUF);
+		}
+
+		HAL_UART_Receive_IT(huart, &rxByte, 1);
+	}
+}
+//-------------------------------------------------------------------------------------------
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if (huart->Instance == USART3) {// portLOG - log
+		uartRdy = true;
+	}
+}
+//-------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
-
-/* USER CODE BEGIN Header_StartDefTask */
-/**
-  * @brief  Function implementing the defTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartDefTask */
-void StartDefTask(void *argument)
-{
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END 5 */
-}
 
 /**
   * @brief  Period elapsed callback in non blocking mode
@@ -532,7 +595,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  else if (htim->Instance == TIM2) {
+	  if ((get_msCounter() & 3) == 3) {//seconda
+		  inc_secCounter();
+		  HAL_GPIO_TogglePin(LED_TIK_GPIO_Port, LED_TIK_Pin);
+	  }
+	  inc_msCounter();
+  }
   /* USER CODE END Callback 1 */
 }
 
