@@ -72,11 +72,8 @@ void HAL_MspInit(void)
   __HAL_RCC_PWR_CLK_ENABLE();
 
   /* System interrupt init*/
-
-  /* Peripheral interrupt init */
-  /* RCC_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(RCC_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(RCC_IRQn);
+  /* PendSV_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(PendSV_IRQn, 15, 0);
 
   /* USER CODE BEGIN MspInit 1 */
 
@@ -327,7 +324,7 @@ static void HAL_FSMC_MspInit(void){
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* Peripheral interrupt init */
-  HAL_NVIC_SetPriority(FSMC_IRQn, 2, 0);
+  HAL_NVIC_SetPriority(FSMC_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(FSMC_IRQn);
   /* USER CODE BEGIN FSMC_MspInit 1 */
 

@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -35,7 +36,10 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-const char *version = "ver.0.2 05.05.2022";
+//const char *version = "ver.0.2 05.05.2022";
+const char *version = "ver.0.3 06.05.2022";
+
+
 
 const char *eol = "\r\n";
 uint32_t devError;
@@ -66,6 +70,18 @@ DMA_HandleTypeDef hdma_usart3_tx;
 
 NAND_HandleTypeDef hnand1;
 
+/* Definitions for defTask */
+osThreadId_t defTaskHandle;
+const osThreadAttr_t defTask_attributes = {
+  .name = "defTask",
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for binSem */
+osSemaphoreId_t binSemHandle;
+const osSemaphoreAttr_t binSem_attributes = {
+  .name = "binSem"
+};
 /* USER CODE BEGIN PV */
 
 TIM_HandleTypeDef *timePort = &htim2;
@@ -81,6 +97,8 @@ static void MX_TIM2_Init(void);
 static void MX_RTC_Init(void);
 static void MX_FSMC_Init(void);
 static void MX_USART3_UART_Init(void);
+void defThread(void *argument);
+
 /* USER CODE BEGIN PFP */
 void errLedOn(bool on);
 //int sec2str(char *st);
@@ -140,17 +158,55 @@ int main(void)
 
   HAL_UART_Receive_IT(logPort, &rxByte, 1);
 
-  HAL_Delay(1500);
-
-  Report(1, "[%s] Start all interrupts (%s)%s", __func__, version, eol);
+  //HAL_Delay(1500);
+  //Report(1, "[%s] Старт - Start all interrupts (%s)%s", __func__, version, eol);
 
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of binSem */
+  binSemHandle = osSemaphoreNew(1, 1, &binSem_attributes);
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defTask */
+  defTaskHandle = osThreadNew(defThread, NULL, &defTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  //LOOP_FOREVER();
+  LOOP_FOREVER();
 
   bool led = false;
   while (1) {
@@ -360,7 +416,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
 
 }
@@ -577,6 +633,35 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 //-------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_defThread */
+/**
+  * @brief  Function implementing the defTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_defThread */
+void defThread(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+
+	bool led = false;
+	HAL_Delay(1500);
+
+	Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+
+
+  /* Infinite loop */
+
+  while (1) {
+	  if (devError) led = true; else led = false;
+	  errLedOn(led);
+
+	  osDelay(500);
+  }
+
+  /* USER CODE END 5 */
+}
 
 /**
   * @brief  Period elapsed callback in non blocking mode
