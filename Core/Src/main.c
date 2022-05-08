@@ -37,20 +37,26 @@
 /* USER CODE BEGIN PD */
 
 //const char *version = "ver.0.2 05.05.2022";
-const char *version = "ver.0.3 06.05.2022";
+//const char *version = "ver.0.3 06.05.2022";
+const char *version = "ver.0.4 (08.05.2022)";
 
 
 
 const char *eol = "\r\n";
+const char *s_restart = "restart";
+const char *s_epoch   = "epoch=";
+s_flags flags = {0};
 uint32_t devError;
 
 volatile static uint32_t secCounter = 0;//period 1s
 volatile static uint64_t msCounter = 0;//period 250ms
-static char txBuf[MAX_UART_BUF] = {0};
+//static char txBuf[MAX_UART_BUF] = {0};
 static char rxBuf[MAX_UART_BUF] = {0};
 uint8_t rxByte = 0;
 uint16_t ruk = 0;
 bool uartRdy = true;
+bool setDate = false;
+uint32_t epoch = 1652042430;//1652037111;
 
 
 /* USER CODE END PD */
@@ -62,6 +68,9 @@ bool uartRdy = true;
 
 /* Private variables ---------------------------------------------------------*/
 RTC_HandleTypeDef hrtc;
+
+SPI_HandleTypeDef hspi1;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 TIM_HandleTypeDef htim2;
 
@@ -83,7 +92,7 @@ const osSemaphoreAttr_t binSem_attributes = {
   .name = "binSem"
 };
 /* USER CODE BEGIN PV */
-
+SPI_HandleTypeDef *ipsPort = &hspi1;
 TIM_HandleTypeDef *timePort = &htim2;
 UART_HandleTypeDef *logPort = &huart3;
 
@@ -97,10 +106,13 @@ static void MX_TIM2_Init(void);
 static void MX_RTC_Init(void);
 static void MX_FSMC_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_SPI1_Init(void);
 void defThread(void *argument);
 
 /* USER CODE BEGIN PFP */
 void errLedOn(bool on);
+void set_Date(uint32_t usec);
+uint32_t getSecRTC(RTC_HandleTypeDef *hrtc);
 //int sec2str(char *st);
 uint8_t Report(uint8_t addTime, const char *fmt, ...);
 /* USER CODE END PFP */
@@ -143,6 +155,7 @@ int main(void)
   MX_RTC_Init();
   MX_FSMC_Init();
   MX_USART3_UART_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   //HAL_Delay(1000);
@@ -160,6 +173,11 @@ int main(void)
 
   //HAL_Delay(1500);
   //Report(1, "[%s] Старт - Start all interrupts (%s)%s", __func__, version, eol);
+
+  //HAL_GPIO_TogglePin(IPS_BLK_GPIO_Port, IPS_BLK_Pin);
+
+  set_Date(epoch);
+
 
 
   /* USER CODE END 2 */
@@ -328,6 +346,44 @@ static void MX_RTC_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -413,11 +469,15 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA1_CLK_ENABLE();
+  __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
   /* DMA1_Stream3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+  /* DMA2_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
 
 }
 
@@ -432,17 +492,27 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, IPS_RES_Pin|IPS_DC_Pin|IPS_BLK_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : IPS_RES_Pin IPS_DC_Pin IPS_BLK_Pin */
+  GPIO_InitStruct.Pin = IPS_RES_Pin|IPS_DC_Pin|IPS_BLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_ERR_Pin */
   GPIO_InitStruct.Pin = LED_ERR_Pin;
@@ -565,18 +635,88 @@ bool check_mstmr(uint64_t hs)
 	return (get_msCounter() >= hs ? true : false);
 }
 //-----------------------------------------------------------------------------------------
+void set_Date(uint32_t usec)
+{
+struct tm ts;
+time_t ep = usec;
+
+	if (!gmtime_r(&ep, &ts)) {
+		errLedOn(NULL);
+		return;
+	}
+
+	RTC_TimeTypeDef sTime;
+	RTC_DateTypeDef sDate;
+	sDate.WeekDay = ts.tm_wday;
+	sDate.Month   = ts.tm_mon + 1;
+	sDate.Date    = ts.tm_mday;
+	sDate.Year    = ts.tm_year;
+	sTime.Hours   = ts.tm_hour;
+	sTime.Minutes = ts.tm_min;
+	sTime.Seconds = ts.tm_sec;
+
+	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
+	else {
+		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN)) devError |= devRTC;
+		else setDate = true;
+	}
+}
+//----------------------------------------------------------------------------------------
+uint32_t getSecRTC(RTC_HandleTypeDef *hrtc)
+{
+time_t ep = 0;
+RTC_DateTypeDef sDate;
+
+	if (HAL_RTC_GetDate(hrtc, &sDate, RTC_FORMAT_BIN)) devError |= devRTC;
+	else {
+		RTC_TimeTypeDef sTime;
+		if (HAL_RTC_GetTime(hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
+		else {
+			struct tm ts;
+			ts.tm_sec = sTime.Seconds;
+			ts.tm_min = sTime.Minutes;
+			ts.tm_hour = sTime.Hours;
+			ts.tm_mday = sDate.Date;
+			ts.tm_mon = sDate.Month - 1;
+			ts.tm_year = sDate.Year;
+			ts.tm_wday = sDate.WeekDay;
+			ep = mktime(&ts);
+		}
+	}
+
+	return ep;
+}
+//-----------------------------------------------------------------------------------------
 int sec2str(char *st)
 {
-	uint32_t sec = get_secCounter();
+int ret = 0;
 
-	uint32_t day = sec / (60 * 60 * 24);
-	sec %= (60 * 60 * 24);
-	uint32_t hour = sec / (60 * 60);
-	sec %= (60 * 60);
-	uint32_t min = sec / (60);
-	sec %= 60;
+	if (!setDate) {
+		uint32_t sec = get_secCounter();
 
-	return (sprintf(st, "%lu.%02lu:%02lu:%02lu ", day, hour, min, sec));
+		uint32_t day = sec / (60 * 60 * 24);
+		sec %= (60 * 60 * 24);
+		uint32_t hour = sec / (60 * 60);
+		sec %= (60 * 60);
+		uint32_t min = sec / (60);
+		sec %= 60;
+
+		ret = sprintf(st, "%lu.%02lu:%02lu:%02lu ", day, hour, min, sec);
+	} else {
+		RTC_TimeTypeDef sTime;
+		RTC_DateTypeDef sDate;
+		if (HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN)) devError |= devRTC;
+		else {
+			if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
+			else {
+				ret = sprintf(st, "%02u.%02u %02u:%02u:%02u ",
+								sDate.Date, sDate.Month,
+								sTime.Hours, sTime.Minutes, sTime.Seconds);
+			}
+		}
+	}
+
+	return ret;
 }
 //-------------------------------------------------------------------------------------------
 uint8_t Report(uint8_t addTime, const char *fmt, ...)
@@ -584,9 +724,10 @@ uint8_t Report(uint8_t addTime, const char *fmt, ...)
 va_list args;
 size_t len = MAX_UART_BUF;
 int dl = 0;
-char *buf = &txBuf[0];
+char *buf = (char *)calloc(1, len);//&txBuf[0];
 
-	    *buf = '\0';
+	if (buf) {
+	    //*buf = '\0';
 		if (addTime) {
 			dl = sec2str(buf);
 			strcat(buf, "| ");
@@ -605,6 +746,9 @@ char *buf = &txBuf[0];
 		}*/
 		va_end(args);
 
+		free(buf);
+	}
+
 	return 0;
 }
 //------------------------------------------------------------------------------------------
@@ -613,8 +757,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if (huart->Instance == USART3) {// logPort - log
 		rxBuf[ruk++] = (char)rxByte;
 		if (rxByte == 0x0a) {//end of line
-			if (strstr(rxBuf, "restart")) {
-				NVIC_SystemReset();
+			char *uk = NULL;
+			if (strstr(rxBuf, s_restart)) {
+				//NVIC_SystemReset();
+				flags.restart = 1;
+			} else if ((uk = strstr(rxBuf, s_epoch))) {
+				uk += strlen(s_epoch);
+				if (*uk != '?') {
+					if (strlen(uk) < 10) setDate = false;
+					else {
+						uint32_t ep = (uint32_t)atol(uk);
+						if (ep > epoch) {
+							epoch = ep;
+							flags.time_set = 1;
+						}
+					}
+				} else {
+					setDate = true;
+					flags.time_show = 1;
+				}
 			}
 			ruk = 0;
 			memset(rxBuf, 0, MAX_UART_BUF);
@@ -645,9 +806,12 @@ void defThread(void *argument)
 {
   /* USER CODE BEGIN 5 */
 
-	bool led = false;
-	HAL_Delay(1500);
+	char *stx = (char *)calloc(1, 128);
+	if (!stx) devError |= devMEM;
 
+	bool led = false;
+
+	HAL_Delay(1500);
 	Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 
 
@@ -657,8 +821,29 @@ void defThread(void *argument)
 	  if (devError) led = true; else led = false;
 	  errLedOn(led);
 
+	  if (flags.restart) {
+		  flags.restart = 0;
+		  break;
+	  } else if (flags.time_set) {
+		  flags.time_set = 0;
+		  set_Date(epoch);
+	  } else if (flags.time_show) {
+		  flags.time_show = 0;
+		  if (stx) {
+			  sec2str(stx);
+			  Report(0, "Current date&time -> %s%s", stx, eol);
+		  }
+	  }
+
 	  osDelay(500);
   }
+
+  if (stx) free(stx);
+
+  Report(1, "%s Стоп '%s' memory:%lu/%lu bytes ...%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+  osDelay(1000);
+
+  NVIC_SystemReset();
 
   /* USER CODE END 5 */
 }

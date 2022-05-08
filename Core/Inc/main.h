@@ -53,8 +53,18 @@ enum {
 	devUART = 1,
 	devMEM,
 	devI2C,
+	devRTC,
 	devNAND
 };
+
+#pragma pack(push,1)
+typedef struct {
+	uint8_t restart:1;
+	uint8_t time_set:1;
+	uint8_t time_show:1;
+	uint8_t none:5;
+} s_flags;
+#pragma pack(pop)
 
 /* USER CODE END ET */
 
@@ -79,6 +89,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define IPS_RES_Pin GPIO_PIN_1
+#define IPS_RES_GPIO_Port GPIOA
+#define IPS_DC_Pin GPIO_PIN_2
+#define IPS_DC_GPIO_Port GPIOA
+#define IPS_BLK_Pin GPIO_PIN_3
+#define IPS_BLK_GPIO_Port GPIOA
+#define IPS_SCK_Pin GPIO_PIN_5
+#define IPS_SCK_GPIO_Port GPIOA
+#define IPS_MOSI_Pin GPIO_PIN_7
+#define IPS_MOSI_GPIO_Port GPIOA
 #define TX3_Pin GPIO_PIN_10
 #define TX3_GPIO_Port GPIOB
 #define RX3_Pin GPIO_PIN_11
