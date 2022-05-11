@@ -26,6 +26,9 @@
 //
 //arm-none-eabi-objcopy -O ihex "${BuildArtifactFileBaseName}.elf" "${BuildArtifactFileBaseName}.hex" && arm-none-eabi-objcopy -O binary "${BuildArtifactFileBaseName}.elf" "${BuildArtifactFileBaseName}.bin" && ls -la | grep "${BuildArtifactFileBaseName}.*"
 //
+
+#include "st7789.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +41,8 @@
 
 //const char *version = "ver.0.2 05.05.2022";
 //const char *version = "ver.0.3 06.05.2022";
-const char *version = "ver.0.4 (08.05.2022)";
+//const char *version = "ver.0.4 (08.05.2022)";
+const char *version = "ver.0.5 (11.05.2022)";
 
 
 
@@ -50,13 +54,14 @@ uint32_t devError;
 
 volatile static uint32_t secCounter = 0;//period 1s
 volatile static uint64_t msCounter = 0;//period 250ms
-//static char txBuf[MAX_UART_BUF] = {0};
+static char txBuf[MAX_UART_BUF] = {0};
 static char rxBuf[MAX_UART_BUF] = {0};
 uint8_t rxByte = 0;
 uint16_t ruk = 0;
 bool uartRdy = true;
+bool spiRdy = true;
 bool setDate = false;
-uint32_t epoch = 1652042430;//1652037111;
+uint32_t epoch = 1652296740;//1652042430;//1652037111;
 
 
 /* USER CODE END PD */
@@ -96,6 +101,9 @@ SPI_HandleTypeDef *ipsPort = &hspi1;
 TIM_HandleTypeDef *timePort = &htim2;
 UART_HandleTypeDef *logPort = &huart3;
 
+const FontDef *fntKey = &Font_16x26;
+const FontDef *tFont = &Font_11x18;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,7 +121,6 @@ void defThread(void *argument);
 void errLedOn(bool on);
 void set_Date(uint32_t usec);
 uint32_t getSecRTC(RTC_HandleTypeDef *hrtc);
-//int sec2str(char *st);
 uint8_t Report(uint8_t addTime, const char *fmt, ...);
 /* USER CODE END PFP */
 
@@ -158,7 +165,6 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_Delay(1000);
 
   HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
@@ -171,13 +177,10 @@ int main(void)
 
   HAL_UART_Receive_IT(logPort, &rxByte, 1);
 
-  //HAL_Delay(1500);
-  //Report(1, "[%s] Старт - Start all interrupts (%s)%s", __func__, version, eol);
-
-  //HAL_GPIO_TogglePin(IPS_BLK_GPIO_Port, IPS_BLK_Pin);
-
   set_Date(epoch);
 
+  ST7789_Reset();
+  ST7789_Init(BLACK);
 
 
   /* USER CODE END 2 */
@@ -226,17 +229,9 @@ int main(void)
 
   LOOP_FOREVER();
 
-  bool led = false;
-  while (1) {
-
-	  if (devError) led = true; else led = false;
-	  errLedOn(led);
-	  HAL_Delay(500);
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
   /* USER CODE END 3 */
 }
 
@@ -365,10 +360,10 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -641,7 +636,7 @@ struct tm ts;
 time_t ep = usec;
 
 	if (!gmtime_r(&ep, &ts)) {
-		errLedOn(NULL);
+		errLedOn(true);
 		return;
 	}
 
@@ -657,8 +652,10 @@ time_t ep = usec;
 
 	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
 	else {
-		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN)) devError |= devRTC;
-		else setDate = true;
+		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN))
+			devError |= devRTC;
+		else
+			setDate = true;
 	}
 }
 //----------------------------------------------------------------------------------------
@@ -724,10 +721,10 @@ uint8_t Report(uint8_t addTime, const char *fmt, ...)
 va_list args;
 size_t len = MAX_UART_BUF;
 int dl = 0;
-char *buf = (char *)calloc(1, len);//&txBuf[0];
+char *buf = &txBuf[0];
 
-	if (buf) {
-	    //*buf = '\0';
+	//if (buf) {
+	    *buf = '\0';
 		if (addTime) {
 			dl = sec2str(buf);
 			strcat(buf, "| ");
@@ -746,8 +743,8 @@ char *buf = (char *)calloc(1, len);//&txBuf[0];
 		}*/
 		va_end(args);
 
-		free(buf);
-	}
+	//	free(buf);
+	//}
 
 	return 0;
 }
@@ -759,7 +756,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		if (rxByte == 0x0a) {//end of line
 			char *uk = NULL;
 			if (strstr(rxBuf, s_restart)) {
-				//NVIC_SystemReset();
 				flags.restart = 1;
 			} else if ((uk = strstr(rxBuf, s_epoch))) {
 				uk += strlen(s_epoch);
@@ -792,6 +788,24 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 //-------------------------------------------------------------------------------------------
+/**/
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	if (hspi->Instance == SPI1) {
+		spiRdy = true;
+	}
+}
+/**/
+/*
+void SPI_DMATransmitCplt(DMA_HandleTypeDef *hdma)
+{
+	SPI_HandleTypeDef *hspi = (SPI_HandleTypeDef *)(((DMA_HandleTypeDef *)hdma)->Parent);
+	if (hspi->Instance == SPI1) {//hdma_spi1_tx) {
+		spiRdy = 1;
+	}
+}
+*/
+//-------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
 
@@ -809,15 +823,43 @@ void defThread(void *argument)
 	char *stx = (char *)calloc(1, 128);
 	if (!stx) devError |= devMEM;
 
-	bool led = false;
-
-	HAL_Delay(1500);
+	HAL_Delay(1000);
 	Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 
+	//fntKey = &Font_16x26;
+	//tFont = &Font_11x18;
+	//ipsOn(0);
+	uint16_t err_color = BLACK;
+	ST7789_Fill(0, 0, ST7789_WIDTH - 1, fntKey->height, YELLOW);
+	ST7789_Fill(0, ST7789_WIDTH - fntKey->height, ST7789_WIDTH - 1, ST7789_HEIGHT - 1, WHITE);
+
+	strcpy(stx, "NAND : K9F1G08U0E");
+	ST7789_WriteString(0,
+					   tFont->height + (tFont->height * 0.85),
+					   mkLineCenter(stx, ST7789_WIDTH / tFont->width),
+					   *tFont,
+					   WHITE,
+					   BLACK);
+	ipsOn(1);
+
+	bool led = false;
+	uint32_t tmr = get_tmr(1);
 
   /* Infinite loop */
 
   while (1) {
+
+	  if (check_tmr(tmr)) {
+		  tmr = get_tmr(1);
+		  //
+		  sec2str(stx);
+		  ST7789_WriteString(8, 0, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, BLUE, YELLOW);
+
+		  sprintf(stx, "Error: 0x%04X", (unsigned int)devError);
+		  if (devError) err_color = RED; else err_color = BLACK;
+		  ST7789_WriteString(0, ST7789_WIDTH - fntKey->height, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, err_color, WHITE);
+	  }
+
 	  if (devError) led = true; else led = false;
 	  errLedOn(led);
 
@@ -835,7 +877,7 @@ void defThread(void *argument)
 		  }
 	  }
 
-	  osDelay(500);
+	  osDelay(250);
   }
 
   if (stx) free(stx);

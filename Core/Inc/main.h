@@ -54,6 +54,7 @@ enum {
 	devMEM,
 	devI2C,
 	devRTC,
+	devSPI,
 	devNAND
 };
 
@@ -77,7 +78,10 @@ typedef struct {
 /* USER CODE BEGIN EM */
 
 #define MAX_UART_BUF 1024
+#define MAX_TMP_SIZE 256
 #define LOOP_FOREVER() while(1) { HAL_Delay(1); }
+#define HTONS(x) \
+    ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
 
 /* USER CODE END EM */
 
@@ -85,6 +89,10 @@ typedef struct {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+
+
+#define _1s 4
+
 
 /* USER CODE END EFP */
 
@@ -109,7 +117,11 @@ void Error_Handler(void);
 #define LED_TIK_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
+uint32_t devError;
 UART_HandleTypeDef *uartPort;
+SPI_HandleTypeDef *ipsPort;
+DMA_HandleTypeDef hdma_spi1_tx;
+bool spiRdy;
 
 /* USER CODE END Private defines */
 
