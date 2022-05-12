@@ -63,7 +63,7 @@ NAND_HandleTypeDef hnand1;
 osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
-  .stack_size = 1024 * 4,
+  .stack_size = 1280 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for binSem */
@@ -78,7 +78,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.0.3 06.05.2022";
 //const char *version = "ver.0.4 (08.05.2022)";
 //const char *version = "ver.0.5 (11.05.2022)";
-const char *version = "ver.0.6 (12.05.2022)";
+//const char *version = "ver.0.6 (12.05.2022)";
+const char *version = "ver.0.6.1 (12.05.2022)";
 
 
 const char *eol = "\r\n";
@@ -97,6 +98,7 @@ bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
 uint32_t epoch = 1652361110;//1652296740;//1652042430;//1652037111;
+uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
 TIM_HandleTypeDef *timePort = &htim2;
@@ -634,30 +636,26 @@ bool check_mstmr(uint64_t hs)
 //-----------------------------------------------------------------------------------------
 void set_Date(uint32_t usec)
 {
-struct tm ts;
-time_t ep = usec;
-
-	if (!gmtime_r(&ep, &ts)) {
-		errLedOn(true);
-		return;
-	}
-
 	RTC_TimeTypeDef sTime;
 	RTC_DateTypeDef sDate;
+	struct tm ts;
+	time_t ep = (time_t)usec;
+
+	gmtime_r(&ep, &ts);
+
 	sDate.WeekDay = ts.tm_wday;
 	sDate.Month   = ts.tm_mon + 1;
 	sDate.Date    = ts.tm_mday;
 	sDate.Year    = ts.tm_year;
-	sTime.Hours   = ts.tm_hour;
-	sTime.Minutes = ts.tm_min;
-	sTime.Seconds = ts.tm_sec;
-
-	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
+	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
 	else {
-		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN))
-			devError |= devRTC;
-		else
+		sTime.Hours   = ts.tm_hour + tZone;
+		sTime.Minutes = ts.tm_min;
+		sTime.Seconds = ts.tm_sec;
+		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+		else {
 			setDate = true;
+		}
 	}
 }
 //----------------------------------------------------------------------------------------
