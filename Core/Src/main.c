@@ -39,31 +39,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-//const char *version = "ver.0.2 05.05.2022";
-//const char *version = "ver.0.3 06.05.2022";
-//const char *version = "ver.0.4 (08.05.2022)";
-const char *version = "ver.0.5 (11.05.2022)";
-
-
-
-const char *eol = "\r\n";
-const char *s_restart = "restart";
-const char *s_epoch   = "epoch=";
-s_flags flags = {0};
-uint32_t devError;
-
-volatile static uint32_t secCounter = 0;//period 1s
-volatile static uint64_t msCounter = 0;//period 250ms
-static char txBuf[MAX_UART_BUF] = {0};
-static char rxBuf[MAX_UART_BUF] = {0};
-uint8_t rxByte = 0;
-uint16_t ruk = 0;
-bool uartRdy = true;
-bool spiRdy = true;
-bool setDate = false;
-uint32_t epoch = 1652296740;//1652042430;//1652037111;
-
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -97,12 +72,39 @@ const osSemaphoreAttr_t binSem_attributes = {
   .name = "binSem"
 };
 /* USER CODE BEGIN PV */
+
+
+//const char *version = "ver.0.2 05.05.2022";
+//const char *version = "ver.0.3 06.05.2022";
+//const char *version = "ver.0.4 (08.05.2022)";
+//const char *version = "ver.0.5 (11.05.2022)";
+const char *version = "ver.0.6 (12.05.2022)";
+
+
+const char *eol = "\r\n";
+const char *s_restart = "restart";
+const char *s_epoch   = "epoch=";
+s_flags flags = {0};
+uint32_t devError;
+
+volatile static uint32_t secCounter = 0;//period 1s
+volatile static uint64_t msCounter = 0;//period 250ms
+static char txBuf[MAX_UART_BUF] = {0};
+static char rxBuf[MAX_UART_BUF] = {0};
+uint8_t rxByte = 0;
+uint16_t ruk = 0;
+bool uartRdy = true;
+bool spiRdy = true;
+bool setDate = false;
+uint32_t epoch = 1652361110;//1652296740;//1652042430;//1652037111;
+
 SPI_HandleTypeDef *ipsPort = &hspi1;
 TIM_HandleTypeDef *timePort = &htim2;
 UART_HandleTypeDef *logPort = &huart3;
 
 const FontDef *fntKey = &Font_16x26;
 const FontDef *tFont = &Font_11x18;
+uint16_t back_color = BLACK;
 
 /* USER CODE END PV */
 
@@ -180,7 +182,7 @@ int main(void)
   set_Date(epoch);
 
   ST7789_Reset();
-  ST7789_Init(BLACK);
+  ST7789_Init(back_color);
 
 
   /* USER CODE END 2 */
@@ -820,6 +822,8 @@ void defThread(void *argument)
 {
   /* USER CODE BEGIN 5 */
 
+	*(uint8_t *)&flags = 0;
+
 	char *stx = (char *)calloc(1, 128);
 	if (!stx) devError |= devMEM;
 
@@ -838,8 +842,8 @@ void defThread(void *argument)
 					   tFont->height + (tFont->height * 0.85),
 					   mkLineCenter(stx, ST7789_WIDTH / tFont->width),
 					   *tFont,
-					   WHITE,
-					   BLACK);
+					   ~back_color,
+					   back_color);
 	ipsOn(1);
 
 	bool led = false;

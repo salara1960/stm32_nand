@@ -4,9 +4,10 @@
 //-----------------------------------------------------------------------------------------
 
 const uint32_t waits = 150;
-uint8_t *frm_buf = NULL;
-const uint8_t total_blk_mem = 1;//240*240=57600 | for stm32f407 sram - 192Кб
-
+//#ifdef SET_WITH_DMA
+//	uint8_t *frm_buf = NULL;
+//	const uint8_t total_blk_mem = 8;//240*240*2=115200 / 8 = 14400 | for stm32f407 sram - 192Кб
+//#endif
 //-----------------------------------------------------------------------------------------
 static void ST7789_WriteCommand(uint8_t cmd)
 {
@@ -39,6 +40,29 @@ HAL_StatusTypeDef rt = HAL_OK;
 		buff += chunk_size;
 		buff_size -= chunk_size;
 	}
+
+	if (rt != HAL_OK) devError |= devSPI;
+}
+//-----------------------------------------------------------------------------------------
+static void ST7789_WriteDataLine(uint8_t *buff, size_t line_size)
+{
+HAL_StatusTypeDef rt = HAL_OK;
+
+	ST7789_DC_Set();
+
+	// split data in small chunks because HAL can't send more than 64K at once
+	//while (buff_size > 0) {
+		//uint16_t chunk_size = buff_size > 65535 ? 65535 : buff_size;
+#ifdef SET_WITH_DMA
+		spiRdy = false;
+		rt = HAL_SPI_Transmit_DMA(ipsPort, buff, line_size);
+		while (!spiRdy) HAL_Delay(1);
+#else
+		rt = HAL_SPI_Transmit(ipsPort, buff, line_size, waits);
+#endif
+		//buff += chunk_size;
+		//buff_size -= chunk_size;
+	//}
 
 	if (rt != HAL_OK) devError |= devSPI;
 }
@@ -152,7 +176,7 @@ void ST7789_Init(uint16_t bkColor)
 		ST7789_WriteData(data, sizeof(data));
 	}
 
-  	uint8_t cmds[] = {ST7789_INVON, ST7789_SLPOUT, ST7789_NORON, ST7789_DISPOFF};//ST7789_DISPON};
+  	uint8_t cmds[] = {ST7789_INVON, ST7789_SLPOUT, ST7789_NORON, ST7789_DISPOFF};
   	ST7789_WriteCommands(cmds, sizeof(cmds));
 
 
@@ -161,33 +185,48 @@ void ST7789_Init(uint16_t bkColor)
 //-----------------------------------------------------------------------------------------
 void ST7789_Fill_Color(uint16_t color)
 {
-
-	ST7789_SetAddressWindow(0, 0, ST7789_WIDTH - 1, ST7789_HEIGHT - 1);
-
+/*
 #ifdef SET_WITH_DMA
-
-	uint8_t cnt = total_blk_mem;
-	int len = (ST7789_WIDTH * ST7789_HEIGHT) / cnt;
+	int total_buf_size = (ST7789_WIDTH * ST7789_HEIGHT);//uint16_t[57600]
+	int len = total_buf_size / total_blk_mem;//14400
 	frm_buf = (uint8_t *)calloc(1, len);
 	if (!frm_buf) return;
-	for (uint16_t j = 0; j < len; j++) frm_buf[j] = color;
+	int i = -1;
+	while (++i < len) {
+		frm_buf[i++] = color >> 8;
+		frm_buf[i++] = color & 0xff;
+	}
+	uint16_t blk = (total_buf_size / len) << 1;
+	uint16_t blk_buf = (len / ST7789_WIDTH) >> 1;
 
+	uint16_t cx = 0, cy = 0, cw = ST7789_WIDTH - 1, ch = ST7789_HEIGHT - 1;//blk_buf - 1;
+	ST7789_SetAddressWindow(cx, cy, cw, ch);
 	ST7789_DC_Set();
-	for (uint8_t i = 0; i < cnt; i++) {
+	for (uint16_t i = 0; i < (blk<<1); i++) {
+		//ST7789_SetAddressWindow(cx, cy, cw, ch);
 		spiRdy = false;
 		HAL_SPI_Transmit_DMA(ipsPort, frm_buf, len);
 		while (!spiRdy) HAL_Delay(1);
+		//cy += blk_buf;
+		//ch += blk_buf;
+
 	}
 
 	if (frm_buf) free(frm_buf);
 
 #else
-	uint8_t data[] = {color >> 8, color & 0xFF};
-	for (uint16_t i = 0; i < ST7789_WIDTH; i++)
-		for (uint16_t j = 0; j < ST7789_HEIGHT; j++) {
-			ST7789_WriteData(data, sizeof(data));
-		}
-#endif
+*/
+	ST7789_SetAddressWindow(0, 0, ST7789_WIDTH - 1, ST7789_HEIGHT - 1);
+
+	uint8_t data[ST7789_WIDTH << 1];
+	uint16_t i = 0, j;
+	for (j = 0; j < ST7789_WIDTH; j++) {
+		*(uint16_t *)(data + i) = HTONS(color);
+		i += 2;
+	}
+	for (j = 0; j < ST7789_HEIGHT; j++) ST7789_WriteDataLine(data, sizeof(data));
+
+//#endif
 }
 //-----------------------------------------------------------------------------------------
 void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
