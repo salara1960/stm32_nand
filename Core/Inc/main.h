@@ -117,11 +117,11 @@ void Error_Handler(void);
 #define LED_TIK_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
-uint32_t devError;
-UART_HandleTypeDef *uartPort;
-SPI_HandleTypeDef *ipsPort;
-DMA_HandleTypeDef hdma_spi1_tx;
-bool spiRdy;
+extern uint32_t devError;
+extern UART_HandleTypeDef *uartPort;
+extern SPI_HandleTypeDef *ipsPort;
+extern DMA_HandleTypeDef hdma_spi1_tx;
+extern bool spiRdy;
 
 /* USER CODE END Private defines */
 

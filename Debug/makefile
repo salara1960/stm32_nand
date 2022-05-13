@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (9-2020-q2-update)
+# Toolchain: GNU Tools for STM32 (10.3-2021.10)
 ################################################################################
 
 -include ../makefile.init
@@ -47,14 +47,14 @@ BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ART
 EXECUTABLES += \
 stm32_nand.elf \
 
+MAP_FILES += \
+stm32_nand.map \
+
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
 stm32_nand.list \
-
-OBJCOPY_BIN += \
-stm32_nand.bin \
 
 
 # All Target
@@ -65,7 +65,7 @@ all:
 main-build: stm32_nand.elf secondary-outputs
 
 # Tool invocations
-stm32_nand.elf: $(OBJS) $(USER_OBJS) /home/alarm/STM32CubeIDE/workspace_1.8.0/stm32_nand/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+stm32_nand.elf stm32_nand.map: $(OBJS) $(USER_OBJS) /home/alarm/STM32CubeIDE/workspace_1.8.0/stm32_nand/STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "stm32_nand.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/alarm/STM32CubeIDE/workspace_1.8.0/stm32_nand/STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32_nand.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
@@ -80,14 +80,9 @@ stm32_nand.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-stm32_nand.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "stm32_nand.bin"
-	@echo 'Finished building: $@'
-	@echo ' '
-
 # Other Targets
 clean:
-	-$(RM) default.size.stdout stm32_nand.bin stm32_nand.elf stm32_nand.list
+	-$(RM) default.size.stdout stm32_nand.elf stm32_nand.list stm32_nand.map
 	-@echo ' '
 
 post-build:
@@ -96,7 +91,7 @@ post-build:
 	ls -la | grep "stm32_nand.*"
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'

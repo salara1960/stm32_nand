@@ -79,7 +79,9 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.0.4 (08.05.2022)";
 //const char *version = "ver.0.5 (11.05.2022)";
 //const char *version = "ver.0.6 (12.05.2022)";
-const char *version = "ver.0.6.1 (12.05.2022)";
+//const char *version = "ver.0.6.1 (12.05.2022)";
+const char *version = "ver.0.6.2 (13.05.2022)";
+
 
 
 const char *eol = "\r\n";
@@ -97,7 +99,7 @@ uint16_t ruk = 0;
 bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
-uint32_t epoch = 1652361110;//1652296740;//1652042430;//1652037111;
+uint32_t epoch = 1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
@@ -170,11 +172,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 
-  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
-  HAL_Delay(500);
-  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_RESET);
+  for (uint8_t i = 0; i < 4; i++) {
+	  HAL_Delay(200);
+	  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_SET);
+	  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_SET);
+	  HAL_Delay(200);
+	  HAL_GPIO_WritePin(LED_TIK_GPIO_Port, LED_TIK_Pin, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(LED_ERR_GPIO_Port, LED_ERR_Pin, GPIO_PIN_RESET);
+  }
 
   // start timer2 + interrupt
   HAL_TIM_Base_Start_IT(timePort);

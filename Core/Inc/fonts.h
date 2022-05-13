@@ -10,10 +10,10 @@ typedef struct {
 } FontDef;
 
 //Font lib.
-const FontDef Font_8x8;
-const FontDef Font_7x10;
-const FontDef Font_11x18;
-const FontDef Font_16x26;
+extern const FontDef Font_8x8;
+extern const FontDef Font_7x10;
+extern const FontDef Font_11x18;
+extern const FontDef Font_16x26;
 
 //16-bit(RGB565) Image lib.
 /*******************************************
