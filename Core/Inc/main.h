@@ -67,6 +67,28 @@ typedef struct {
 } s_flags;
 #pragma pack(pop)
 
+#pragma pack(push,1)
+typedef struct
+{
+  uint8_t Maker_Id;
+  uint8_t Device_Id;
+  uint8_t Third_Id;
+  uint8_t Fourth_Id;
+  uint8_t Plane_Id;
+} NAND_IDsTypeDef;
+#pragma pack(pop)
+
+#pragma pack(push,1)
+typedef struct {
+	uint32_t        PageSize;              // NAND memory page (without spare area) size measured in bytes
+	uint32_t        SpareAreaSize;         // NAND memory spare area size measured in bytes
+	uint32_t        BlockSize;             // NAND memory block size measured in number of pages
+	uint32_t        BlockNbr;              // NAND memory number of total blocks
+	uint32_t        PlaneNbr;              // NAND memory number of planes
+	uint32_t        PlaneSize;
+} s_chipConf;
+#pragma pack(pop)
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -77,11 +99,18 @@ typedef struct {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 
+
+//#define SET_SWV
+
+
+
 #define MAX_UART_BUF 1024
 #define MAX_TMP_SIZE 256
 #define LOOP_FOREVER() while(1) { HAL_Delay(1); }
 #define HTONS(x) \
     ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
+
+#define MAX_NAND_STATE 4
 
 /* USER CODE END EM */
 

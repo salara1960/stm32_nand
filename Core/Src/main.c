@@ -63,7 +63,7 @@ NAND_HandleTypeDef hnand1;
 osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
-  .stack_size = 1280 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for binSem */
@@ -80,7 +80,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.0.5 (11.05.2022)";
 //const char *version = "ver.0.6 (12.05.2022)";
 //const char *version = "ver.0.6.1 (12.05.2022)";
-const char *version = "ver.0.6.2 (13.05.2022)";
+//const char *version = "ver.0.6.2 (13.05.2022)";
+const char *version = "ver.0.7 (19.05.2022)";
 
 
 
@@ -99,7 +100,7 @@ uint16_t ruk = 0;
 bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
-uint32_t epoch = 1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
+uint32_t epoch = 1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
@@ -109,6 +110,19 @@ UART_HandleTypeDef *logPort = &huart3;
 const FontDef *fntKey = &Font_16x26;
 const FontDef *tFont = &Font_11x18;
 uint16_t back_color = BLACK;
+
+
+HAL_NAND_StateTypeDef nandState = HAL_NAND_STATE_ERROR;
+NAND_IDsTypeDef nandID = {0};
+const uint8_t chipIDcode = 0xF1;
+const char *chipID = "K9F1G08U0E";
+s_chipConf chipConf = {0};
+const char *nandAllState[MAX_NAND_STATE] = {
+	"HAL_NAND_STATE_RESET",//     = 0x00U,  /*!< NAND not yet initialized or disabled */
+	"HAL_NAND_STATE_READY",//     = 0x01U,  /*!< NAND initialized and ready for use   */
+	"HAL_NAND_STATE_BUSY",//      = 0x02U,  /*!< NAND internal process is ongoing     */
+	"HAL_NAND_STATE_ERROR"//      = 0x03U   /*!< NAND error state                     */
+};
 
 /* USER CODE END PV */
 
@@ -124,14 +138,59 @@ static void MX_SPI1_Init(void);
 void defThread(void *argument);
 
 /* USER CODE BEGIN PFP */
+HAL_StatusTypeDef HAL_NAND_Read_IDs(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID);
+uint32_t get_tmr(uint32_t sec);
+bool check_tmr(uint32_t sec);
 void errLedOn(bool on);
 void set_Date(uint32_t usec);
 uint32_t getSecRTC(RTC_HandleTypeDef *hrtc);
+int sec2str(char *st);
 uint8_t Report(uint8_t addTime, const char *fmt, ...);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+//-------------------------------------------------------------------------------------------
+#ifdef SET_SWV
+/*
+#include "stdio.h"
+#define ITM_Port8(n)  (*((volatile unsigned char *)(0xE0000000 + 4*n)))
+#define ITM_Port16(n) (*((volatile unsigned short *)(0xE0000000 + 4*n)))
+#define ITM_Port32(n) (*((volatile unsigned long *)(0xE0000000 + 4*n)))
+#define DEMCR (*((volatile unsigned long *)(0xE000EDFC)))
+#define TRCENA 0x1000000
+struct __FILE { int handle; }
+FILE __stdout;
+FILE __stin;
+int fputc(int ch, FILE *f)
+{
+	if (DEMCR & TRCENA) {
+		while (ITM_Port32(0) == 0);
+		ITM_Port8(0) = ch;
+	}
+	return ch;
+}
+*/
+/*
+int __io_putchar(int ch)
+{
+	ITM_SendChar(ch);
+
+	return ch;
+}
+*/
+/**/
+int _write(int file, char *buf, int len)
+{
+	for (int i = 0; i < len; i++) ITM_SendChar((*buf++));
+	return len;
+}
+/**/
+#endif
+
+//-------------------------------------------------------------------------------------------
+
 
 /* USER CODE END 0 */
 
@@ -236,8 +295,19 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  LOOP_FOREVER();
-
+    LOOP_FOREVER();
+/*
+  char st[128] = {0};
+  uint32_t tmsec = get_tmr(2);
+  while (1) {
+	  if (check_tmr(tmsec)) {
+		  tmsec = get_tmr(2);
+		  sec2str(st);
+		  printf("%s%s", st, eol);
+	  }
+	  HAL_Delay(100);
+  }
+*/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -477,10 +547,10 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
   /* DMA2_Stream3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
 
 }
@@ -561,13 +631,13 @@ static void MX_FSMC_Init(void)
   hnand1.Init.TCLRSetupTime = 0;
   hnand1.Init.TARSetupTime = 0;
   /* hnand1.Config */
-  hnand1.Config.PageSize = 0;
-  hnand1.Config.SpareAreaSize = 0;
-  hnand1.Config.BlockSize = 0;
-  hnand1.Config.BlockNbr = 0;
-  hnand1.Config.PlaneNbr = 0;
-  hnand1.Config.PlaneSize = 0;
-  hnand1.Config.ExtraCommandEnable = DISABLE;
+  hnand1.Config.PageSize = 2048;
+  hnand1.Config.SpareAreaSize = 16;
+  hnand1.Config.BlockSize = 131072;
+  hnand1.Config.BlockNbr = 1024;
+  hnand1.Config.PlaneNbr = 1;
+  hnand1.Config.PlaneSize = 134217728;
+  hnand1.Config.ExtraCommandEnable = ENABLE;
   /* ComSpaceTiming */
   ComSpaceTiming.SetupTime = 252;
   ComSpaceTiming.WaitSetupTime = 252;
@@ -586,10 +656,89 @@ static void MX_FSMC_Init(void)
 
   /* USER CODE BEGIN FSMC_Init 2 */
 
+  if (HAL_NAND_Read_IDs(&hnand1, &nandID) == HAL_OK) {
+
+	  nandState = HAL_NAND_GetState(&hnand1);
+
+	  memcpy((uint8_t *)&chipConf, (uint8_t *)&hnand1.Config, sizeof(s_chipConf));
+
+  }
+
+
   /* USER CODE END FSMC_Init 2 */
 }
 
 /* USER CODE BEGIN 4 */
+
+HAL_StatusTypeDef HAL_NAND_Read_IDs(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID)
+{
+  __IO uint32_t data = 0U;
+  __IO uint32_t data1 = 0U;
+  uint32_t deviceaddress = 0U;
+
+  /* Process Locked */
+  __HAL_LOCK(hnand);
+
+  /* Check the NAND controller state */
+  if(hnand->State == HAL_NAND_STATE_BUSY)
+  {
+     return HAL_BUSY;
+  }
+
+  /* Identify the device address */
+  if(hnand->Init.NandBank == FMC_NAND_BANK2)
+  {
+    deviceaddress = NAND_DEVICE1;
+  }
+  else
+  {
+    deviceaddress = NAND_DEVICE2;
+  }
+
+  /* Update the NAND controller state */
+  hnand->State = HAL_NAND_STATE_BUSY;
+
+  /* Send Read ID command sequence */
+  *(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA))  = NAND_CMD_READID;
+  *(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00;
+
+  /* Read the electronic signature from NAND flash */
+  if (hnand->Init.MemoryDataWidth == FSMC_NAND_PCC_MEM_BUS_WIDTH_8)
+  {
+    data = *(__IO uint32_t *)deviceaddress;
+    data1 = *((__IO uint32_t *)deviceaddress + 4U);
+
+    /* Return the data read */
+    pNAND_ID->Maker_Id   = ADDR_1ST_CYCLE(data);
+    pNAND_ID->Device_Id  = ADDR_2ND_CYCLE(data);
+    pNAND_ID->Third_Id   = ADDR_3RD_CYCLE(data);
+    pNAND_ID->Fourth_Id  = ADDR_4TH_CYCLE(data);
+    pNAND_ID->Plane_Id  = ADDR_1ST_CYCLE(data1);
+
+    hnand->State = HAL_NAND_STATE_READY;
+  }
+  else
+  {
+    /*data = *(__IO uint32_t *)deviceaddress;
+    data1 = *((__IO uint32_t *)deviceaddress + 4U);
+    // Return the data read
+    pNAND_ID->Maker_Id   = ADDR_1ST_CYCLE(data);
+    pNAND_ID->Device_Id  = ADDR_3RD_CYCLE(data);
+    pNAND_ID->Third_Id   = ADDR_1ST_CYCLE(data1);
+    pNAND_ID->Fourth_Id  = ADDR_3RD_CYCLE(data1);*/
+
+  }
+
+  /* Update the NAND controller state */
+  //hnand->State = HAL_NAND_STATE_READY;
+
+  /* Process unlocked */
+  __HAL_UNLOCK(hnand);
+
+  return HAL_OK;
+}
+
+
 //-------------------------------------------------------------------------------------------
 void errLedOn(bool on)
 {
@@ -810,7 +959,8 @@ void SPI_DMATransmitCplt(DMA_HandleTypeDef *hdma)
 	}
 }
 */
-//-------------------------------------------------------------------------------------------
+
+
 
 /* USER CODE END 4 */
 
@@ -827,12 +977,34 @@ void defThread(void *argument)
 
 	*(uint8_t *)&flags = 0;
 
-	char *stx = (char *)calloc(1, 128);
+	char *stx = (char *)calloc(1, 256);
 	if (!stx) devError |= devMEM;
 
 	HAL_Delay(1000);
 	Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 
+
+	char cid[32];
+	if (nandState == HAL_NAND_STATE_READY) {
+		if (nandID.Device_Id == chipIDcode) strncpy(cid, chipID, sizeof(cid));
+		                               else strcpy(cid, "UNKNOWN");
+		strcpy(stx, "NAND:");
+		uint8_t *bid = (uint8_t *)&nandID.Maker_Id;
+		for (int8_t i = 0; i < sizeof(NAND_IDsTypeDef); i++) sprintf(stx+strlen(stx), " %02X", *(bid + i));
+		sprintf(stx+strlen(stx),
+				"\n\tMakerID=%02X\n\tDevice_Id=%02X '%s'\n\tThird_Id=%02X\n\tFourth_Id=%02X\n\tPlane_Id=%02X",
+			    nandID.Maker_Id, nandID.Device_Id, cid, nandID.Third_Id, nandID.Fourth_Id, nandID.Plane_Id);
+	} else {
+			sprintf(stx,
+					"NAND: Error nandStatus='%s'(%d)",
+					nandAllState[nandState & (MAX_NAND_STATE - 1)], nandState);
+	}
+	Report(1, "%s%s", stx, eol);
+
+
+#ifdef SET_SWV
+	char stz[128] = {0};
+#endif
 	//fntKey = &Font_16x26;
 	//tFont = &Font_11x18;
 	//ipsOn(0);
@@ -840,10 +1012,21 @@ void defThread(void *argument)
 	ST7789_Fill(0, 0, ST7789_WIDTH - 1, fntKey->height, YELLOW);
 	ST7789_Fill(0, ST7789_WIDTH - fntKey->height, ST7789_WIDTH - 1, ST7789_HEIGHT - 1, WHITE);
 
-	strcpy(stx, "NAND : K9F1G08U0E");
+	sprintf(stx, "NAND : %s", cid);
+	mkLineCenter(stx, ST7789_WIDTH / tFont->width);
+	//sprintf(stx+strlen(stx), "Maker:0x%02X\nchipID:0x%02X\n3-rd:0x%02X\n4-th:0x%02X\n5-th:0x%02X",
+	//		                 nandID.Maker_Id, nandID.Device_Id, nandID.Third_Id, nandID.Fourth_Id, nandID.Plane_Id);
+	sprintf(stx+strlen(stx),
+			"PageSize:%lu\nSpareAreaSize:%lu\nBlockSize:%lu KB\nBlockNbr:%lu\nPlaneNbr:%lu\nPlaneSize:%lu MB",
+			chipConf.PageSize,
+			chipConf.SpareAreaSize,
+			chipConf.BlockSize / 1024,
+			chipConf.BlockNbr,
+			chipConf.PlaneNbr,
+			chipConf.PlaneSize / 1024 / 1024);
 	ST7789_WriteString(0,
 					   tFont->height + (tFont->height * 0.85),
-					   mkLineCenter(stx, ST7789_WIDTH / tFont->width),
+					   stx,
 					   *tFont,
 					   ~back_color,
 					   back_color);
@@ -860,11 +1043,19 @@ void defThread(void *argument)
 		  tmr = get_tmr(1);
 		  //
 		  sec2str(stx);
+#ifdef SET_SWV
+		  strcpy(stz, stx);
+#endif
 		  ST7789_WriteString(8, 0, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, BLUE, YELLOW);
 
 		  sprintf(stx, "Error: 0x%04X", (unsigned int)devError);
 		  if (devError) err_color = RED; else err_color = BLACK;
 		  ST7789_WriteString(0, ST7789_WIDTH - fntKey->height, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, err_color, WHITE);
+		  //
+#ifdef SET_SWV
+		  //puts("Second...");
+		  printf("[%s] %s%s", __func__, stz, eol);
+#endif
 	  }
 
 	  if (devError) led = true; else led = false;
