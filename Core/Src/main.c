@@ -89,8 +89,7 @@ const char *version = "ver.0.8 (20.05.2022)";
 const char *eol = "\r\n";
 const char *s_restart = "restart";
 const char *s_epoch   = "epoch:";
-const char *s_read = "read:";
-const char *s_next = "next";
+const char *s_cmds[MAX_CMDS] = {"read:", "next", "write:", "erase:"};
 s_flags flags = {0};
 uint32_t devError;
 
@@ -103,7 +102,8 @@ uint16_t ruk = 0;
 bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
-uint32_t epoch = 1653055492;//1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
+//1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
+uint32_t epoch = 1653082240;//1653055492;
 uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
@@ -119,6 +119,8 @@ uint16_t back_color = BLACK;
 uint32_t devAdr = 0;
 uint32_t nandAdr = 0;
 uint16_t nandLen = 0;
+uint32_t nandBlk = 0;
+uint8_t nandByte = 0xff;
 uint32_t cb_nandCounter = 0;
 HAL_NAND_StateTypeDef nandState = HAL_NAND_STATE_ERROR;
 NAND_IDsTypeDef nandID = {0};
@@ -126,10 +128,10 @@ const uint8_t chipIDcode = 0xF1;
 const char *chipID = "K9F1G08U0E";
 s_chipConf chipConf = {0};
 const char *nandAllState[MAX_NAND_STATE] = {
-	"HAL_NAND_STATE_RESET",//     = 0x00U,  /*!< NAND not yet initialized or disabled */
-	"HAL_NAND_STATE_READY",//     = 0x01U,  /*!< NAND initialized and ready for use   */
-	"HAL_NAND_STATE_BUSY",//      = 0x02U,  /*!< NAND internal process is ongoing     */
-	"HAL_NAND_STATE_ERROR"//      = 0x03U   /*!< NAND error state                     */
+	"HAL_NAND_STATE_RESET",// = 0x00U,   NAND not yet initialized or disabled
+	"HAL_NAND_STATE_READY",// = 0x01U,   NAND initialized and ready for use
+	"HAL_NAND_STATE_BUSY", // = 0x02U,   NAND internal process is ongoing
+	"HAL_NAND_STATE_ERROR" // = 0x03U    NAND error state
 };
 uint8_t *rdBuf = NULL;
 uint8_t *wrBuf = NULL;
@@ -677,7 +679,9 @@ static void MX_FSMC_Init(void)
 	  if ((chipConf.PageSize > 0) && (chipConf.PageSize <= MAX_NAND_BUF)) {
 		  rdBuf = (uint8_t *)calloc(1, chipConf.PageSize);
 		  if (!rdBuf) devError |= devMEM;
-	  } else devError |= devNAND;
+	  } else {
+		  devError |= devNAND;
+	  }
 
   }
 
@@ -689,49 +693,45 @@ static void MX_FSMC_Init(void)
 
 HAL_StatusTypeDef HAL_NAND_Read_IDs(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID)
 {
-  __IO uint32_t data = 0U;
-  __IO uint32_t data1 = 0U;
-  uint32_t deviceaddress = 0U;
+__IO uint32_t data = 0U;
+__IO uint32_t data1 = 0U;
+uint32_t deviceaddress = 0U;
 
-  /* Process Locked */
-  __HAL_LOCK(hnand);
+	__HAL_LOCK(hnand);
 
-  /* Check the NAND controller state */
-  if(hnand->State == HAL_NAND_STATE_BUSY) return HAL_BUSY;
+	if(hnand->State == HAL_NAND_STATE_BUSY) return HAL_BUSY;
 
-  /* Identify the device address */
-  if(hnand->Init.NandBank == FMC_NAND_BANK2) {
-    deviceaddress = NAND_DEVICE1;
-  } else {
-    deviceaddress = NAND_DEVICE2;
-  }
-  devAdr = deviceaddress;
+	if(hnand->Init.NandBank == FMC_NAND_BANK2) {
+		deviceaddress = NAND_DEVICE1;
+	} else {
+		deviceaddress = NAND_DEVICE2;
+	}
+	devAdr = deviceaddress;
 
-  /* Update the NAND controller state */
-  hnand->State = HAL_NAND_STATE_BUSY;
+	hnand->State = HAL_NAND_STATE_BUSY;
 
-  /* Send Read ID command sequence */
-  *(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA))  = NAND_CMD_READID;
-  *(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00;
+	/* Send Read ID command sequence */
+	*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA))  = NAND_CMD_READID;
+	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00;
 
-  /* Read the electronic signature from NAND flash */
-  if (hnand->Init.MemoryDataWidth == FSMC_NAND_PCC_MEM_BUS_WIDTH_8) {
-    data = *(__IO uint32_t *)deviceaddress;
-    data1 = *((__IO uint32_t *)deviceaddress + 4U);
+	/* Read the electronic signature from NAND flash */
+	if (hnand->Init.MemoryDataWidth == FSMC_NAND_PCC_MEM_BUS_WIDTH_8) {
+		data = *(__IO uint32_t *)deviceaddress;
+		data1 = *((__IO uint32_t *)deviceaddress + 4U);
 
-    /* Return the data read */
-    pNAND_ID->Maker_Id   = ADDR_1ST_CYCLE(data);
-    pNAND_ID->Device_Id  = ADDR_2ND_CYCLE(data);
-    pNAND_ID->Third_Id   = ADDR_3RD_CYCLE(data);
-    pNAND_ID->Fourth_Id  = ADDR_4TH_CYCLE(data);
-    pNAND_ID->Plane_Id  = ADDR_1ST_CYCLE(data1);
+		/* Return the data read */
+		pNAND_ID->Maker_Id  = ADDR_1ST_CYCLE(data);
+		pNAND_ID->Device_Id = ADDR_2ND_CYCLE(data);
+		pNAND_ID->Third_Id  = ADDR_3RD_CYCLE(data);
+		pNAND_ID->Fourth_Id = ADDR_4TH_CYCLE(data);
+		pNAND_ID->Plane_Id  = ADDR_1ST_CYCLE(data1);
 
-    hnand->State = HAL_NAND_STATE_READY;
-  }
+		hnand->State = HAL_NAND_STATE_READY;
+	}
 
-  __HAL_UNLOCK(hnand);
+	__HAL_UNLOCK(hnand);
 
-  return HAL_OK;
+	return HAL_OK;
 }
 //-----------------------------------------------------------------------------
 //      Функция преобразует hex-строку в бинарное число типа uint32_t
@@ -901,28 +901,21 @@ size_t len = MAX_UART_BUF;
 int dl = 0;
 char *buf = &txBuf[0];
 
-	//if (buf) {
-	    *buf = '\0';
-		if (addTime) {
-			dl = sec2str(buf);
-			strcat(buf, "| ");
-			dl += 2;
-		}
+	*buf = '\0';
+	if (addTime) {
+		dl = sec2str(buf);
+		strcat(buf, "| ");
+		dl += 2;
+	}
 
-		va_start(args, fmt);
-		vsnprintf(buf + dl, len - dl, fmt, args);
+	va_start(args, fmt);
+	vsnprintf(buf + dl, len - dl, fmt, args);
 
-		uartRdy = false;
-		if (HAL_UART_Transmit_DMA(logPort, (uint8_t *)buf, strlen(buf)) != HAL_OK) devError |= devUART;
-		while (!uartRdy) HAL_Delay(1);
-		/*while (HAL_UART_GetState(logPort) != HAL_UART_STATE_READY) {
-			if (HAL_UART_GetState(logPort) == HAL_UART_STATE_BUSY_RX) break;
-			HAL_Delay(1);
-		}*/
-		va_end(args);
+	uartRdy = false;
+	if (HAL_UART_Transmit_DMA(logPort, (uint8_t *)buf, strlen(buf)) != HAL_OK) devError |= devUART;
+	while (!uartRdy) HAL_Delay(1);
 
-	//	free(buf);
-	//}
+	va_end(args);
 
 	return 0;
 }
@@ -951,38 +944,64 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					setDate = true;
 					flags.time_show = 1;
 				}
-			} else if ((uk = strstr(rxBuf, s_read))) {//const char *s_read = "read:0x4549ABBB:256";
-				//
+			} else {
+				int8_t idx = -1;
+				for (int8_t i = 0; i < MAX_CMDS; i++) {
+					if ((uk = strstr(rxBuf, s_cmds[i]))) {//const char *s_cmds = "read:0x4549ABBB:256";
+						                                  //"next";
+														  //"write:0x0:256:0xf0"
+														  //"erase:"
+						idx = i;
+						break;
+					}
+				}
 				if (uk == rxBuf) {
 					nandLen = 256;
-					uk += strlen(s_read);
-					char *uki = strchr(uk, ':');
-					if (uki) {
-						nandLen = atol(uki + 1);
-						*uki = '\0';
+					uk += strlen(s_cmds[idx]);
+					char *uki = NULL;
+					switch (idx) {
+						case cmdRead://"read:0x4549ABBB:256";
+							uki = strchr(uk, ':');
+							if (uki) {
+								nandLen = atol(uki + 1);
+								*uki = '\0';
+							}
+							uki = strstr(uk, "0x");
+							if (uki) {
+								uki += 2;
+								nandAdr = hex2bin(uki, strlen(uki));
+							} else {
+								nandAdr = atol(uk);
+							}
+							nandAdr += devAdr;
+							check = true;
+							flags.cmd = cmdRead;
+						break;
+						case cmdNext://"next";
+							if (nandAdr < devAdr) nandAdr = devAdr;
+							nandAdr += nandLen;
+							check = true;
+							flags.cmd = cmdNext;
+						break;
+						case cmdWrite://"write:0x0:256:0xf0"
+						break;
+						case cmdErase://"erase:0" //erase:block_number from 0..1023
+						{
+							uint32_t blk = atol(uk);
+							if (blk < chipConf.BlockNbr) {
+								nandBlk = blk;
+								flags.cmd = cmdErase;
+								flags.cmd_flag = 1;
+							}
+						}
+						break;
 					}
-					uki = strstr(uk, "0x");
-					if (uki) {
-						uki += 2;
-						nandAdr = hex2bin(uki, strlen(uki));
-					} else {
-						nandAdr = atol(uk);
+					if (check) {
+						flags.cmd_flag = 1;
+						if ((nandAdr + nandLen) >= (chipConf.PlaneSize + devAdr)) {
+							nandLen = chipConf.PlaneSize - nandAdr - 1;
+						}
 					}
-					nandAdr += devAdr;
-					check = true;
-					flags.read = 1;
-				}
-				//
-			} else if ((uk = strstr(rxBuf, s_next))) {//const char *s_next = "next";
-				nandLen = 256;
-				if (nandAdr < devAdr) nandAdr = devAdr;
-				nandAdr += nandLen;
-				check = true;
-				flags.next = 1;
-			}
-			if (check) {
-				if ((nandAdr + nandLen) >= (chipConf.PlaneSize + devAdr)) {
-					nandLen = chipConf.PlaneSize - nandAdr - 1;
 				}
 			}
 			ruk = 0;
@@ -1000,14 +1019,13 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 //-------------------------------------------------------------------------------------------
-/**/
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 	if (hspi->Instance == SPI1) {
 		spiRdy = true;
 	}
 }
-/**/
+//-------------------------------------------------------------------------------------------
 /*
 void SPI_DMATransmitCplt(DMA_HandleTypeDef *hdma)
 {
@@ -1023,6 +1041,15 @@ void HAL_NAND_ITCallback(NAND_HandleTypeDef *hnand)
 	if (hnand->Instance == FSMC_NAND_DEVICE) {
 		cb_nandCounter++;
 	}
+}
+//-------------------------------------------------------------------------------------------
+uint32_t nand_PageToBlock(uint32_t page)
+{
+    return (page * chipConf.PageSize) / chipConf.BlockSize;
+}
+uint32_t nand_BlockToPage(uint32_t blk)
+{
+	return (blk * chipConf.BlockSize) / chipConf.PageSize;
 }
 //-------------------------------------------------------------------------------------------
 
@@ -1142,55 +1169,78 @@ void defThread(void *argument)
 		  flags.time_show = 0;
 		  sec2str(stx);
 		  Report(0, "Current date&time -> %s%s", stx, eol);
-	  } else if (flags.read) {
-		  flags.read = 0;
-		  Report(1, "Read nand adr:0x%X len:%lu%s", nandAdr, nandLen, eol);
-		  if (rdBuf) {
-			  NAND_AddressTypeDef addr = {
-					.Page = 0,
-			  		.Plane = 1,
-			  		.Block = 0
-			  };
-			  if (HAL_NAND_Read_Page_8b(nandPort, &addr, rdBuf, 1) == HAL_OK) {
-				  nand_show = 1;
-				  readed = true;
-			  } else devError |= devNAND;
+	  } else if (flags.cmd_flag) {
+		  flags.cmd_flag = 0;
+		  switch (flags.cmd) {
+		  	  case cmdRead:
+		  	  {
+		  		  uint32_t p = (nandAdr - devAdr) / chipConf.PageSize;
+		  		  NAND_AddressTypeDef addr = {
+		  		      .Page = p,
+					  .Plane = 1,
+					  .Block = nand_PageToBlock(p)
+		  		  };
+		  		  Report(1, "Read nand adr:0x%X len:%lu (page:%lu blk:%lu)%s",
+		  				    nandAdr, nandLen, addr.Page, addr.Block, eol);
+		  		  if (rdBuf) {
+		  			  if (HAL_NAND_Read_Page_8b(nandPort, &addr, rdBuf, 1) == HAL_OK) {
+		  				  nand_show = 1;
+		  				  readed = true;
+		  			  } else devError |= devNAND;
+		  		  }
+		  	  }
+		  	  break;
+		  	  case cmdNext:
+		  		  Report(1, "Read next nand adr:0x%X len:%lu%s",
+		  				    nandAdr, nandLen, eol);
+		  		  if (rdBuf) nand_show = 2;
+		  	  break;
+		  	  case cmdErase:
+		  	  {
+		  		  NAND_AddressTypeDef addr = {
+		  			  .Page = nand_BlockToPage(nandBlk),
+					  .Plane = 1,
+				      .Block = nandBlk
+		  		  };
+		  		  Report(1, "Erase nand page:%lu blk:%lu...",
+		  				    addr.Page, addr.Block);
+		  		  if (rdBuf) {
+		  			  if (HAL_NAND_Erase_Block(nandPort, &addr) != HAL_OK) devError |= devNAND;
+		  		  }
+		  		  Report(0, "%s", eol);
+		  	  }
+		  	  break;
 		  }
-	  } else if (flags.next) {
-		  flags.next = 0;
-		  Report(1, "Read next nand adr:0x%X len:%lu%s", nandAdr, nandLen, eol);
-		  if (rdBuf) nand_show = 2;
-	  }
-	  if (nand_show) {
-		  uint32_t adr = nandAdr;
-		  int step = 32;
-		  uint32_t ind = 0;
-		  uint32_t max_ind = nandLen;
-		  if (nand_show == 2) {
-			  if (readed) {
-				  ind = adr & (chipConf.PageSize - 1);// - devAdr;
-				  max_ind = chipConf.PageSize;
-			  } else ind = max_ind;
-		  }
-		  if (ind < max_ind) {
-			  bool done = false;
-			  uint32_t sch = nandLen / step;
-			  stx[0] = '\0';
-			  while (!done) {
-				  sprintf(stx+strlen(stx), "%08X ", (unsigned int)adr);
-				  for (int i = 0; i < step; i++) sprintf(stx+strlen(stx), " %02X", rdBuf[i + ind]);
-				  strcat(stx, eol);
-				  adr += step;
-				  ind += step;
-				  sch--;
-				  if (!sch) done = true;
+		  if (nand_show) {
+			  uint32_t adr = nandAdr;
+			  int step = 32;
+			  uint32_t ind = 0;
+			  uint32_t max_ind = nandLen;
+			  if (nand_show == 2) {
+				  if (readed) {
+					  ind = adr & (chipConf.PageSize - 1);// - devAdr;
+					  max_ind = chipConf.PageSize;
+				  } else ind = max_ind;
 			  }
-			  Report(0, "%s", stx);
-		  } else {
-			  Report(0, "\tError: ind=%lu max_ind=%lu readed=%d%s", ind, max_ind, readed, eol);
+			  if (ind < max_ind) {
+				  bool done = false;
+				  uint32_t sch = nandLen / step;
+				  stx[0] = '\0';
+				  while (!done) {
+					  sprintf(stx+strlen(stx), "%08X ", (unsigned int)adr);
+					  for (int i = 0; i < step; i++) sprintf(stx+strlen(stx), " %02X", rdBuf[i + ind]);
+					  strcat(stx, eol);
+					  adr += step;
+					  ind += step;
+					  sch--;
+					  if (!sch) done = true;
+				  }
+				  Report(0, "%s", stx);
+			  } else {
+				  Report(0, "\tError: ind=%lu max_ind=%lu readed=%d%s", ind, max_ind, readed, eol);
+			  }
 		  }
 	  }
-
 	  osDelay(250);
   }
 

@@ -58,14 +58,21 @@ enum {
 	devNAND
 };
 
+enum {
+	cmdRead = 0,
+	cmdNext,
+	cmdWrite,
+	cmdErase
+};
+
 #pragma pack(push,1)
 typedef struct {
 	uint8_t restart:1;
 	uint8_t time_set:1;
 	uint8_t time_show:1;
-	uint8_t read:1;
-	uint8_t next:1;
-	uint8_t none:3;
+	uint8_t cmd_flag:1;
+	uint8_t cmd:2;
+	uint8_t none:2;
 } s_flags;
 #pragma pack(pop)
 
@@ -82,12 +89,12 @@ typedef struct
 
 #pragma pack(push,1)
 typedef struct {
-	uint32_t        PageSize;              // NAND memory page (without spare area) size measured in bytes
-	uint32_t        SpareAreaSize;         // NAND memory spare area size measured in bytes
-	uint32_t        BlockSize;             // NAND memory block size measured in number of pages
-	uint32_t        BlockNbr;              // NAND memory number of total blocks
-	uint32_t        PlaneNbr;              // NAND memory number of planes
-	uint32_t        PlaneSize;
+	uint32_t PageSize;      // NAND memory page (without spare area) size measured in bytes
+	uint32_t SpareAreaSize; // NAND memory spare area size measured in bytes
+	uint32_t BlockSize;     // NAND memory block size measured in number of pages
+	uint32_t BlockNbr;      // NAND memory number of total blocks
+	uint32_t PlaneNbr;      // NAND memory number of planes
+	uint32_t PlaneSize;
 } s_chipConf;
 #pragma pack(pop)
 
@@ -104,7 +111,7 @@ typedef struct {
 
 //#define SET_SWV
 
-
+#define MAX_CMDS 4
 
 #define MAX_UART_BUF 1024
 #define MAX_TMP_SIZE 256
