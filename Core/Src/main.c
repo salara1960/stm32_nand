@@ -925,6 +925,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if (huart->Instance == USART3) {// logPort - log
 		rxBuf[ruk++] = (char)rxByte;
 		if (rxByte == 0x0a) {//end of line
+			ruk--;
+			rxBuf[ruk] = '\0';
 			char *uk = NULL;
 			bool check = false;
 			if (strstr(rxBuf, s_restart)) {
