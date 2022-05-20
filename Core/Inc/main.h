@@ -63,7 +63,9 @@ typedef struct {
 	uint8_t restart:1;
 	uint8_t time_set:1;
 	uint8_t time_show:1;
-	uint8_t none:5;
+	uint8_t read:1;
+	uint8_t next:1;
+	uint8_t none:3;
 } s_flags;
 #pragma pack(pop)
 
@@ -111,6 +113,7 @@ typedef struct {
     ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
 
 #define MAX_NAND_STATE 4
+#define MAX_NAND_BUF 8192
 
 /* USER CODE END EM */
 
