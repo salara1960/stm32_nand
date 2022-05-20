@@ -37,11 +37,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00005d7c  00000000  00000000  00048668  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0001ef60  00000000  00000000  0004e3e4  2**0
+ 17 .debug_line   0001ef63  00000000  00000000  0004e3e4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000e2ecd  00000000  00000000  0006d344  2**0
+ 18 .debug_str    000e2ecd  00000000  00000000  0006d347  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  00150211  2**0
+ 19 .comment      00000050  00000000  00000000  00150214  2**0
                   CONTENTS, READONLY
  20 .debug_ranges 00001980  00000000  00000000  00150268  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -3123,14 +3123,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  80019b8:	781b      	ldrb	r3, [r3, #0]
  80019ba:	2b0a      	cmp	r3, #10
  80019bc:	f040 8160 	bne.w	8001c80 <HAL_UART_RxCpltCallback+0x2f4>
-			ruk--;
+			rxBuf[--ruk] = '\0';
  80019c0:	4b81      	ldr	r3, [pc, #516]	; (8001bc8 <HAL_UART_RxCpltCallback+0x23c>)
  80019c2:	881b      	ldrh	r3, [r3, #0]
  80019c4:	3b01      	subs	r3, #1
  80019c6:	b29a      	uxth	r2, r3
  80019c8:	4b7f      	ldr	r3, [pc, #508]	; (8001bc8 <HAL_UART_RxCpltCallback+0x23c>)
  80019ca:	801a      	strh	r2, [r3, #0]
-			rxBuf[ruk] = '\0';
  80019cc:	4b7e      	ldr	r3, [pc, #504]	; (8001bc8 <HAL_UART_RxCpltCallback+0x23c>)
  80019ce:	881b      	ldrh	r3, [r3, #0]
  80019d0:	461a      	mov	r2, r3
