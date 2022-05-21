@@ -62,7 +62,8 @@ enum {
 	cmdRead = 0,
 	cmdNext,
 	cmdWrite,
-	cmdErase
+	cmdErase,
+	cmdClear//erase all blocks
 };
 
 #pragma pack(push,1)
@@ -71,8 +72,8 @@ typedef struct {
 	uint8_t time_set:1;
 	uint8_t time_show:1;
 	uint8_t cmd_flag:1;
-	uint8_t cmd:2;
-	uint8_t none:2;
+	uint8_t cmd:3;
+	uint8_t none:1;
 } s_flags;
 #pragma pack(pop)
 
@@ -111,7 +112,7 @@ typedef struct {
 
 //#define SET_SWV
 
-#define MAX_CMDS 4
+#define MAX_CMDS 5
 
 #define MAX_UART_BUF 1024
 #define MAX_TMP_SIZE 256
