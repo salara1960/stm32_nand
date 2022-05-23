@@ -69,18 +69,14 @@ enum {
 	cmdClear//erase all blocks
 };
 
-/*
+/**/
 #pragma pack(push,1)
 typedef struct {
-	uint8_t restart:1;
-	uint8_t time_set:1;
-	uint8_t time_show:1;
-	uint8_t cmd_flag:1;
-	uint8_t cmd:3;
-	uint8_t none:1;
-} s_flags;
+	uint8_t cmd;
+	uint8_t attr;
+} s_qcmd;
 #pragma pack(pop)
-*/
+/**/
 
 #pragma pack(push,1)
 typedef struct

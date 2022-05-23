@@ -97,15 +97,14 @@ const char *eol = "\r\n";
 const char *s_cmds[MAX_CMDS] = {"restart", "epoch:", "read:", "next", "write:", "erase:", "clear"};
 uint8_t devError;
 uint8_t cmd_flag = 0;
-uint8_t cmd = 0;
 const char *str_cmds[MAX_CMDS] = {
-	"cmdRestart",
-	"cmdEpoch",
-	"cmdRead",
-	"cmdNext",
-	"cmdWrite",
-	"cmdErase",
-	"cmdClear"
+	"Restart",
+	"Epoch",
+	"Read",
+	"Next",
+	"Write",
+	"Erase",
+	"Clear"
 };
 
 volatile static uint32_t secCounter = 0;//period 1s
@@ -303,7 +302,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of myQue */
-  myQueHandle = osMessageQueueNew (16, sizeof(uint8_t), &myQue_attributes);
+  myQueHandle = osMessageQueueNew (16, sizeof(s_qcmd), &myQue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -923,7 +922,7 @@ int ret = 0;
 		uint32_t min = sec / (60);
 		sec %= 60;
 
-		ret = sprintf(st, "%lu.%02lu:%02lu:%02lu ", day, hour, min, sec);
+		ret = sprintf(st, "%lu.%02lu:%02lu:%02lu", day, hour, min, sec);
 	} else {
 		RTC_TimeTypeDef sTime;
 		RTC_DateTypeDef sDate;
@@ -931,7 +930,7 @@ int ret = 0;
 		else {
 			if (HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN)) devError |= devRTC;
 			else {
-				ret = sprintf(st, "%02u.%02u %02u:%02u:%02u ",
+				ret = sprintf(st, "%02u.%02u %02u:%02u:%02u",
 								sDate.Date, sDate.Month,
 								sTime.Hours, sTime.Minutes, sTime.Seconds);
 			}
@@ -951,8 +950,8 @@ char *buf = &txBuf[0];
 	*buf = '\0';
 	if (addTime) {
 		dl = sec2str(buf);
-		strcat(buf, "| ");
-		dl += 2;
+		strcat(buf, " | ");
+		dl += 3;
 	}
 
 	va_start(args, fmt);
@@ -976,6 +975,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			char *uk = NULL;
 			bool check = false;
 			cmd_flag = 0;
+			s_qcmd qcmd = {0};
 			if (strlen(rxBuf) >= 4) {
 				int8_t idx = -1;
 				for (int8_t i = 0; i < MAX_CMDS; i++) {
@@ -996,7 +996,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					char *uki = NULL, *uke = NULL, *ukb = NULL;
 					switch (idx) {
 						case cmdRestart:
-							cmd = cmdRestart;
+							qcmd.cmd = cmdRestart;
 							cmd_flag = 1;
 						break;
 						case cmdEpoch:
@@ -1006,10 +1006,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 									uint32_t ep = (uint32_t)atol(uk);
 									if (ep > epoch) {
 										epoch = ep;
-										cmd = cmdEpoch;
+										qcmd.cmd = cmdEpoch;
 										cmd_flag = 1;
 									}
 								}
+							} else {
+								qcmd.cmd = cmdEpoch;
+								qcmd.attr = 1;
+								cmd_flag = 1;
 							}
 						break;
 						case cmdRead://"read:0x4549ABBB:256";
@@ -1027,13 +1031,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							}
 							nandAdr += devAdr;
 							check = true;
-							cmd = cmdRead;
+							qcmd.cmd = cmdRead;
 						break;
 						case cmdNext://"next";
 							if (nandAdr < devAdr) nandAdr = devAdr;
 							nandAdr += nandLen;
 							check = true;
-							cmd = cmdNext;
+							qcmd.cmd = cmdNext;
 						break;
 						case cmdWrite://"write:'0x0:0x55:256'" //adr:byte:len
 						{
@@ -1067,7 +1071,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								    else nandByte = (uint8_t)atol(ukb);
 								nandAdr += devAdr;
 								check = true;
-								cmd = cmdWrite;
+								qcmd.cmd = cmdWrite;
 							}
 						}
 						break;
@@ -1076,14 +1080,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							uint32_t blk = atol(uk);
 							if (blk < chipConf.BlockNbr) {
 								nandBlk = blk;
-								cmd = cmdErase;
+								qcmd.cmd = cmdErase;
 								cmd_flag = 1;
 							}
 						}
 						break;
 						case cmdClear://"clear" //erase block from 0..1023
 							nandBlk = chipConf.BlockNbr;
-							cmd = cmdClear;
+							qcmd.cmd = cmdClear;
 							cmd_flag = 1;
 						break;
 					}
@@ -1095,7 +1099,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					}
 					//
 					if (cmd_flag) {
-						if ((qStat = osMessageQueuePut(myQueHandle, (void *)&cmd, 5, 0)) != osOK) devError |= devQUE;
+						if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, 5, 0)) != osOK) devError |= devQUE;
 					}
 					//
 				}
@@ -1236,7 +1240,7 @@ void defThread(void *argument)
 	bool led = false;
 	uint32_t tmr = get_tmr(1);
 
-	uint8_t qcmd = 0;
+	s_qcmd qcmd = {0};
 	uint8_t prio = 0;
 	osStatus_t qs = osOK;
 
@@ -1282,15 +1286,20 @@ void defThread(void *argument)
 				Report(1, "OS: %s%s", get_qStat(qStat), eol);
 			}
 		} else {
-			Report(1, "Command(%u): '%s'%s", qcmd, str_cmds[cmd], eol);
+			Report(1, "Command(%u.%u): '%s'%s", qcmd.cmd, qcmd.attr, str_cmds[qcmd.cmd], eol);
 			nand_show = 0;
-			switch (qcmd) {
+			switch (qcmd.cmd) {
 				case cmdRestart:
 					loop = false;
 		  		break;
 		  		break;
 				case cmdEpoch:
-					set_Date(epoch);
+					if (!qcmd.attr) {
+						set_Date(epoch);
+					} else {
+						sec2str(stx);
+						Report(0, "%s <- Current date&time%s", stx, eol);
+					}
 				break;
 				case cmdRead:
 				{
