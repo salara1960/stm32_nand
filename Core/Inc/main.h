@@ -51,21 +51,25 @@ extern "C" {
 
 enum {
 	devUART = 1,
-	devMEM,
-	devI2C,
-	devRTC,
-	devSPI,
-	devNAND
+	devMEM = 2,
+	devI2C = 4,
+	devRTC = 8,
+	devSPI = 0x10,
+	devNAND = 0x20,
+	devQUE = 0x40
 };
 
 enum {
-	cmdRead = 0,
+	cmdRestart = 0,
+	cmdEpoch,
+	cmdRead,
 	cmdNext,
 	cmdWrite,
 	cmdErase,
 	cmdClear//erase all blocks
 };
 
+/*
 #pragma pack(push,1)
 typedef struct {
 	uint8_t restart:1;
@@ -76,6 +80,7 @@ typedef struct {
 	uint8_t none:1;
 } s_flags;
 #pragma pack(pop)
+*/
 
 #pragma pack(push,1)
 typedef struct
@@ -112,7 +117,7 @@ typedef struct {
 
 //#define SET_SWV
 
-#define MAX_CMDS 5
+#define MAX_CMDS 7
 
 #define MAX_UART_BUF 1024
 #define MAX_TMP_SIZE 256
@@ -147,17 +152,45 @@ void Error_Handler(void);
 #define IPS_SCK_GPIO_Port GPIOA
 #define IPS_MOSI_Pin GPIO_PIN_7
 #define IPS_MOSI_GPIO_Port GPIOA
+#define D4_Pin GPIO_PIN_7
+#define D4_GPIO_Port GPIOE
+#define D5_Pin GPIO_PIN_8
+#define D5_GPIO_Port GPIOE
+#define D6_Pin GPIO_PIN_9
+#define D6_GPIO_Port GPIOE
+#define D7_Pin GPIO_PIN_10
+#define D7_GPIO_Port GPIOE
 #define TX3_Pin GPIO_PIN_10
 #define TX3_GPIO_Port GPIOB
 #define RX3_Pin GPIO_PIN_11
 #define RX3_GPIO_Port GPIOB
+#define CLE_Pin GPIO_PIN_11
+#define CLE_GPIO_Port GPIOD
+#define ALE_Pin GPIO_PIN_12
+#define ALE_GPIO_Port GPIOD
 #define LED_ERR_Pin GPIO_PIN_13
 #define LED_ERR_GPIO_Port GPIOD
+#define D0_Pin GPIO_PIN_14
+#define D0_GPIO_Port GPIOD
+#define D1_Pin GPIO_PIN_15
+#define D1_GPIO_Port GPIOD
 #define LED_TIK_Pin GPIO_PIN_7
 #define LED_TIK_GPIO_Port GPIOC
+#define D2_Pin GPIO_PIN_0
+#define D2_GPIO_Port GPIOD
+#define D3_Pin GPIO_PIN_1
+#define D3_GPIO_Port GPIOD
+#define NOE_Pin GPIO_PIN_4
+#define NOE_GPIO_Port GPIOD
+#define NWE_Pin GPIO_PIN_5
+#define NWE_GPIO_Port GPIOD
+#define NWAIT_Pin GPIO_PIN_6
+#define NWAIT_GPIO_Port GPIOD
+#define NCE2_Pin GPIO_PIN_7
+#define NCE2_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
-extern uint32_t devError;
+extern uint8_t devError;
 extern UART_HandleTypeDef *uartPort;
 extern SPI_HandleTypeDef *ipsPort;
 extern DMA_HandleTypeDef hdma_spi1_tx;
