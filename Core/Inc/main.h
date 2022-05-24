@@ -33,6 +33,8 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "stm32f4xx_ll_fsmc.h"
+
 #include <malloc.h>
 #include <stdbool.h>
 #include <string.h>
@@ -66,7 +68,7 @@ enum {
 	cmdNext,
 	cmdWrite,
 	cmdErase,
-	cmdClear//erase all blocks
+	cmdCheck
 };
 
 /**/
@@ -111,18 +113,27 @@ typedef struct {
 /* USER CODE BEGIN EM */
 
 
+#define MY_NAND_DEVICE 0x70000000L
+
+
 //#define SET_SWV
 
+#define BACK_SPACE 8
+
 #define MAX_CMDS 7
+#define MAX_LEN_DATA 512//256
 
-#define MAX_UART_BUF 1024
-#define MAX_TMP_SIZE 256
-#define LOOP_FOREVER() while(1) { HAL_Delay(1); }
-#define HTONS(x) \
-    ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
-
+#define MAX_UART_BUF (MAX_LEN_DATA << 2)//1024
 #define MAX_NAND_STATE 4
 #define MAX_NAND_BUF 8192
+
+#define LOOP_FOREVER() while(1) { HAL_Delay(1); }
+#define HTONS(x) ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
+
+
+#ifdef SET_SWV
+	#define MAX_TMP_SIZE 256
+#endif
 
 /* USER CODE END EM */
 
