@@ -120,7 +120,7 @@ bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
-static uint32_t epoch = 1653474923;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
+static uint32_t epoch = 1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
 uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
@@ -704,7 +704,7 @@ static void MX_FSMC_Init(void)
 
   /* USER CODE BEGIN FSMC_Init 2 */
 
-  if (my_NAND_Read_ID(&hnand1, &nandID) == HAL_OK) {
+  if (my_NAND_Read_ID(&hnand1, &nandID) == HAL_OK) {//read ID information from chip
 
 	  nandState = HAL_NAND_GetState(&hnand1);
 
@@ -1006,12 +1006,12 @@ time_t ep = (time_t)usec;
 	sDate.Month   = ts.tm_mon + 1;
 	sDate.Date    = ts.tm_mday;
 	sDate.Year    = ts.tm_year;
-	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+	sTime.Hours   = ts.tm_hour + tZone;
+	sTime.Minutes = ts.tm_min;
+	sTime.Seconds = ts.tm_sec;
+	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
 	else {
-		sTime.Hours   = ts.tm_hour + tZone;
-		sTime.Minutes = ts.tm_min;
-		sTime.Seconds = ts.tm_sec;
-		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
 		else {
 			setDate = true;
 		}

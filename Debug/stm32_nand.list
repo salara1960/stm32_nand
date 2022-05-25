@@ -37,11 +37,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00005dc6  00000000  00000000  00049808  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0001fe4e  00000000  00000000  0004f5ce  2**0
+ 17 .debug_line   0001fe4a  00000000  00000000  0004f5ce  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000e3ef1  00000000  00000000  0006f41c  2**0
+ 18 .debug_str    000e3ef1  00000000  00000000  0006f418  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  0015330d  2**0
+ 19 .comment      00000050  00000000  00000000  00153309  2**0
                   CONTENTS, READONLY
  20 .debug_ranges 000019c0  00000000  00000000  00153360  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -2151,7 +2151,7 @@ static void MX_FSMC_Init(void)
 
   /* USER CODE BEGIN FSMC_Init 2 */
 
-  if (my_NAND_Read_ID(&hnand1, &nandID) == HAL_OK) {
+  if (my_NAND_Read_ID(&hnand1, &nandID) == HAL_OK) {//read ID information from chip
  80012d6:	492c      	ldr	r1, [pc, #176]	; (8001388 <MX_FSMC_Init+0x174>)
  80012d8:	4829      	ldr	r0, [pc, #164]	; (8001380 <MX_FSMC_Init+0x16c>)
  80012da:	f000 f861 	bl	80013a0 <my_NAND_Read_ID>
@@ -3296,58 +3296,58 @@ time_t ep = (time_t)usec;
  8001a76:	6c3b      	ldr	r3, [r7, #64]	; 0x40
  8001a78:	b2db      	uxtb	r3, r3
  8001a7a:	72fb      	strb	r3, [r7, #11]
-	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
- 8001a7c:	f107 0308 	add.w	r3, r7, #8
- 8001a80:	2200      	movs	r2, #0
- 8001a82:	4619      	mov	r1, r3
- 8001a84:	4819      	ldr	r0, [pc, #100]	; (8001aec <set_Date+0xb0>)
- 8001a86:	f004 fcc3 	bl	8006410 <HAL_RTC_SetDate>
- 8001a8a:	4603      	mov	r3, r0
- 8001a8c:	2b00      	cmp	r3, #0
- 8001a8e:	d007      	beq.n	8001aa0 <set_Date+0x64>
- 8001a90:	4b17      	ldr	r3, [pc, #92]	; (8001af0 <set_Date+0xb4>)
- 8001a92:	781b      	ldrb	r3, [r3, #0]
- 8001a94:	f043 0308 	orr.w	r3, r3, #8
- 8001a98:	b2da      	uxtb	r2, r3
- 8001a9a:	4b15      	ldr	r3, [pc, #84]	; (8001af0 <set_Date+0xb4>)
- 8001a9c:	701a      	strb	r2, [r3, #0]
-		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+	sTime.Hours   = ts.tm_hour + tZone;
+ 8001a7c:	6b7b      	ldr	r3, [r7, #52]	; 0x34
+ 8001a7e:	b2da      	uxtb	r2, r3
+ 8001a80:	4b1a      	ldr	r3, [pc, #104]	; (8001aec <set_Date+0xb0>)
+ 8001a82:	781b      	ldrb	r3, [r3, #0]
+ 8001a84:	4413      	add	r3, r2
+ 8001a86:	b2db      	uxtb	r3, r3
+ 8001a88:	733b      	strb	r3, [r7, #12]
+	sTime.Minutes = ts.tm_min;
+ 8001a8a:	6b3b      	ldr	r3, [r7, #48]	; 0x30
+ 8001a8c:	b2db      	uxtb	r3, r3
+ 8001a8e:	737b      	strb	r3, [r7, #13]
+	sTime.Seconds = ts.tm_sec;
+ 8001a90:	6afb      	ldr	r3, [r7, #44]	; 0x2c
+ 8001a92:	b2db      	uxtb	r3, r3
+ 8001a94:	73bb      	strb	r3, [r7, #14]
+	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+ 8001a96:	f107 030c 	add.w	r3, r7, #12
+ 8001a9a:	2200      	movs	r2, #0
+ 8001a9c:	4619      	mov	r1, r3
+ 8001a9e:	4814      	ldr	r0, [pc, #80]	; (8001af0 <set_Date+0xb4>)
+ 8001aa0:	f004 fbbe 	bl	8006220 <HAL_RTC_SetTime>
+ 8001aa4:	4603      	mov	r3, r0
+ 8001aa6:	2b00      	cmp	r3, #0
+ 8001aa8:	d007      	beq.n	8001aba <set_Date+0x7e>
+ 8001aaa:	4b12      	ldr	r3, [pc, #72]	; (8001af4 <set_Date+0xb8>)
+ 8001aac:	781b      	ldrb	r3, [r3, #0]
+ 8001aae:	f043 0308 	orr.w	r3, r3, #8
+ 8001ab2:	b2da      	uxtb	r2, r3
+ 8001ab4:	4b0f      	ldr	r3, [pc, #60]	; (8001af4 <set_Date+0xb8>)
+ 8001ab6:	701a      	strb	r2, [r3, #0]
+		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
 		else {
 			setDate = true;
 		}
 	}
 }
- 8001a9e:	e021      	b.n	8001ae4 <set_Date+0xa8>
-		sTime.Hours   = ts.tm_hour + tZone;
- 8001aa0:	6b7b      	ldr	r3, [r7, #52]	; 0x34
- 8001aa2:	b2da      	uxtb	r2, r3
- 8001aa4:	4b13      	ldr	r3, [pc, #76]	; (8001af4 <set_Date+0xb8>)
- 8001aa6:	781b      	ldrb	r3, [r3, #0]
- 8001aa8:	4413      	add	r3, r2
- 8001aaa:	b2db      	uxtb	r3, r3
- 8001aac:	733b      	strb	r3, [r7, #12]
-		sTime.Minutes = ts.tm_min;
- 8001aae:	6b3b      	ldr	r3, [r7, #48]	; 0x30
- 8001ab0:	b2db      	uxtb	r3, r3
- 8001ab2:	737b      	strb	r3, [r7, #13]
-		sTime.Seconds = ts.tm_sec;
- 8001ab4:	6afb      	ldr	r3, [r7, #44]	; 0x2c
- 8001ab6:	b2db      	uxtb	r3, r3
- 8001ab8:	73bb      	strb	r3, [r7, #14]
-		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
- 8001aba:	f107 030c 	add.w	r3, r7, #12
+ 8001ab8:	e014      	b.n	8001ae4 <set_Date+0xa8>
+		if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK) devError |= devRTC;
+ 8001aba:	f107 0308 	add.w	r3, r7, #8
  8001abe:	2200      	movs	r2, #0
  8001ac0:	4619      	mov	r1, r3
- 8001ac2:	480a      	ldr	r0, [pc, #40]	; (8001aec <set_Date+0xb0>)
- 8001ac4:	f004 fbac 	bl	8006220 <HAL_RTC_SetTime>
+ 8001ac2:	480b      	ldr	r0, [pc, #44]	; (8001af0 <set_Date+0xb4>)
+ 8001ac4:	f004 fca4 	bl	8006410 <HAL_RTC_SetDate>
  8001ac8:	4603      	mov	r3, r0
  8001aca:	2b00      	cmp	r3, #0
  8001acc:	d007      	beq.n	8001ade <set_Date+0xa2>
- 8001ace:	4b08      	ldr	r3, [pc, #32]	; (8001af0 <set_Date+0xb4>)
+ 8001ace:	4b09      	ldr	r3, [pc, #36]	; (8001af4 <set_Date+0xb8>)
  8001ad0:	781b      	ldrb	r3, [r3, #0]
  8001ad2:	f043 0308 	orr.w	r3, r3, #8
  8001ad6:	b2da      	uxtb	r2, r3
- 8001ad8:	4b05      	ldr	r3, [pc, #20]	; (8001af0 <set_Date+0xb4>)
+ 8001ad8:	4b06      	ldr	r3, [pc, #24]	; (8001af4 <set_Date+0xb8>)
  8001ada:	701a      	strb	r2, [r3, #0]
 }
  8001adc:	e002      	b.n	8001ae4 <set_Date+0xa8>
@@ -3360,9 +3360,9 @@ time_t ep = (time_t)usec;
  8001ae6:	3750      	adds	r7, #80	; 0x50
  8001ae8:	46bd      	mov	sp, r7
  8001aea:	bd80      	pop	{r7, pc}
- 8001aec:	2000011c 	.word	0x2000011c
- 8001af0:	2000032c 	.word	0x2000032c
- 8001af4:	20001345 	.word	0x20001345
+ 8001aec:	20001345 	.word	0x20001345
+ 8001af0:	2000011c 	.word	0x2000011c
+ 8001af4:	2000032c 	.word	0x2000032c
  8001af8:	20001344 	.word	0x20001344
 
 08001afc <sec2str>:
