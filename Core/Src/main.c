@@ -64,7 +64,7 @@ osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
   .stack_size = 1024 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for myQue */
 osMessageQueueId_t myQueHandle;
@@ -97,7 +97,7 @@ const char *version = "ver.1.2 (25.05.2022)";
 
 
 const char *eol = "\r\n";
-const char *s_cmds[MAX_CMDS] = {"restart", "epoch:", "read:", "next", "write:", "erase:", "check:"};
+const char *s_cmds[MAX_CMDS] = {"restart", "epoch:", "read:", "next", "write:", "erase:", "check:", "area:"};
 uint8_t devError;
 uint8_t cmd_flag = 0;
 const char *str_cmds[MAX_CMDS] = {
@@ -107,7 +107,8 @@ const char *str_cmds[MAX_CMDS] = {
 	"Next",
 	"Write",
 	"Erase",
-	"Check"
+	"Check",
+	"Area"
 };
 
 volatile static uint32_t secCounter = 0;//period 1s
@@ -171,6 +172,7 @@ static void MX_SPI1_Init(void);
 void defThread(void *argument);
 
 /* USER CODE BEGIN PFP */
+
 HAL_StatusTypeDef my_NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID);
 uint32_t get_tmr(uint32_t sec);
 bool check_tmr(uint32_t sec);
@@ -181,6 +183,7 @@ int sec2str(char *st);
 uint8_t Report(uint8_t addTime, const char *fmt, ...);
 uint32_t nand_PageToBlock(const uint32_t page);
 uint32_t nand_BlockToPage(const uint32_t blk);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -265,8 +268,6 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  //stx = (char *)calloc(1, MAX_UART_BUF);
-  //if (!stx) devError |= devMEM;
 
   for (uint8_t i = 0; i < 4; i++) {
 	  HAL_Delay(150);
@@ -337,21 +338,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
     LOOP_FOREVER();
-/*
-  char st[128] = {0};
-  uint32_t tmsec = get_tmr(2);
-  while (1) {
-	  if (check_tmr(tmsec)) {
-		  tmsec = get_tmr(2);
-		  sec2str(st);
-		  printf("%s%s", st, eol);
-	  }
-	  HAL_Delay(100);
-  }
-*/
-    /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+  /* USER CODE END WHILE */
+
+  /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
 }
 
@@ -779,6 +769,8 @@ HAL_StatusTypeDef my_NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pN
 	return HAL_OK;
 }
 //-----------------------------------------------------------------------------
+//      Check: page is empty ?
+//
 bool pageIsEmpty(uint32_t page)
 {
 bool ret = false;
@@ -874,7 +866,7 @@ bool ret = false;
 			for (uint32_t index = 0; index < nandPort->Config.PageSize; index++) {
 				if (*(uint8_t *)deviceaddress != 0xff) {
 					ret = false;
-					break;
+					//break;
 				}
 			}
 
@@ -888,6 +880,111 @@ bool ret = false;
 		return ret;//HAL_ERROR;
 	}
 
+	return ret;
+}
+//-----------------------------------------------------------------------------
+//           Check: area only in one page is empty ?
+//
+bool areaIsEmpty(uint32_t adr, uint32_t len)
+{
+bool ret = false;
+uint32_t shift = adr - devAdr;
+uint32_t page = shift / nandPort->Config.PageSize;
+uint32_t block = nand_PageToBlock(page);
+
+
+	if (nandPort->State == HAL_NAND_STATE_BUSY) {
+		devError |= devNAND;
+		return ret;//HAL_BUSY;
+	} else if (nandPort->State == HAL_NAND_STATE_READY) {
+		//
+		shift %= nandPort->Config.PageSize;
+		uint32_t dlin = shift + len;
+		if (dlin > nandPort->Config.PageSize)  dlin = nandPort->Config.PageSize - shift;
+		//
+		Report(1, "[%s] adr:0x%X..0x%X len:%lu shift:%lu..%lu page:%lu block:%lu%s",
+				  __func__, adr, adr + len - 1, len, shift, dlin - 1, page, block, eol);
+		//
+		__HAL_LOCK(nandPort);
+		nandPort->State = HAL_NAND_STATE_BUSY;
+
+		NAND_AddressTypeDef pAddress = {
+			.Page = page,
+			.Plane = 1,
+			.Block = block
+		};
+		uint32_t deviceaddress = devAdr;
+		uint32_t nandaddress = ARRAY_ADDRESS(&pAddress, nandPort);
+		/* Page(s) read loop */
+		if (nandaddress < ((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr))) {
+			/* Send read page command sequence */
+			*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_A;
+			__DSB();
+			/* Cards with page size <= 512 bytes */
+			if ((nandPort->Config.PageSize) <= 512U) {
+				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+					__DSB();
+				}
+			} else {/* (hnand->Config.PageSize) > 512 */
+				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+					__DSB();
+				}
+			}
+
+			*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA))  = NAND_CMD_AREA_TRUE1;
+			__DSB();
+
+			ret = true;
+			uint8_t byte;
+			for (uint32_t index = 0; index < nandPort->Config.PageSize; index++) {
+				byte = *(uint8_t *)deviceaddress;
+				if ((index >= shift) && (index < dlin)) {
+					if (byte != 0xff) ret = false;
+				}
+			}
+		}
+		//
+		nandPort->State = HAL_NAND_STATE_READY;
+		__HAL_UNLOCK(nandPort);
+		//
+	} else {
+		devError |= devNAND;
+		return ret;//HAL_ERROR;
+	}
+
+	//
 	return ret;
 }
 //-----------------------------------------------------------------------------
@@ -1181,6 +1278,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							qcmd.cmd = cmdNext;
 						break;
 						case cmdWrite://"write:'0x0:0x55:256'" //adr:byte:len
+						case cmdArea://"area:'0x0:0x55:256'" //adr:byte:len
 						{
 							bool hex = false;
 							uki = strstr(uk, "0x");
@@ -1212,7 +1310,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								    else nandByte = (uint8_t)atol(ukb);
 								nandAdr += devAdr;
 								check = true;
-								qcmd.cmd = cmdWrite;
+								qcmd.cmd = idx;
 							}
 						}
 						break;
@@ -1328,10 +1426,9 @@ bool ret = true;
 //-------------------------------------------------------------------------------------------
 void showBuf(uint8_t type, bool rd, uint32_t adr, uint32_t len, const uint8_t *buf)
 {
-//uint32_t adr = nandAdr;
 int step = 32;
 uint32_t ind = 0;
-uint32_t max_ind = len;//nandLen;
+uint32_t max_ind = len;
 
 	if (type == 2) {
 		if (rd) {
@@ -1382,12 +1479,6 @@ void defThread(void *argument)
   /* USER CODE BEGIN 5 */
 
 
-	/*char *stx = (char *)calloc(1, MAX_UART_BUF);
-	if (!stx) {
-		devWrror |= devMEM;
-		osThreadExit();
-	}*/
-
 
 
 #ifdef SET_SWV
@@ -1395,7 +1486,7 @@ void defThread(void *argument)
 #endif
 
 
-	HAL_Delay(500);
+	HAL_Delay(250);
 	Report(0, "%s", eol);
 	Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 
@@ -1434,8 +1525,6 @@ void defThread(void *argument)
 
 	sprintf(screen, "NAND : %s", cid);
 	mkLineCenter(screen, ST7789_WIDTH / tFont->width);
-	//sprintf(stx+strlen(stx), "Maker:0x%02X\nchipID:0x%02X\n3-rd:0x%02X\n4-th:0x%02X\n5-th:0x%02X",
-	//		                 nandID.Maker_Id, nandID.Device_Id, nandID.Third_Id, nandID.Fourth_Id, nandID.Plane_Id);
 	sprintf(screen+strlen(screen),
 			"PageSize:%lu\nSpareAreaSize:%lu\nBlockSize:%lu KB\nBlockNbr:%lu\nPlaneNbr:%lu\nPlaneSize:%lu MB",
 			chipConf.PageSize,
@@ -1571,7 +1660,6 @@ void defThread(void *argument)
 				case cmdCheck:
 				{
 					uint32_t b = nand_PageToBlock(nandPage);
-					//if (!isPageEmpty(nandPage)) {
 					if (!pageIsEmpty(nandPage)) {
 						Report(1, "Page:%lu in block:%lu Not empty%s", nandPage, b, eol);
 					} else {
@@ -1580,7 +1668,18 @@ void defThread(void *argument)
 				}
 				break;
 				case cmdWrite:
+				case cmdArea:
 					if (wrBuf) {
+						//
+						if (qcmd.cmd == cmdArea) {
+							if (!areaIsEmpty(nandAdr, nandLen)) {
+								Report(1, "Area Not empty%s", eol);
+							} else {
+								Report(1, "Area is Empty%s", eol);
+							}
+							break;
+						}
+						//
 						uint32_t p = (nandAdr - devAdr) / chipConf.PageSize;
 						uint32_t b = nand_PageToBlock(p);
 						NAND_AddressTypeDef addr = {
@@ -1588,13 +1687,7 @@ void defThread(void *argument)
 							.Plane = 1,
 							.Block = b
 						};
-						//if (!isPageEmpty(p)) {
 						if (!pageIsEmpty(nandPage)) {
-							/*NAND_AddressTypeDef eaddr = {
-								.Page = p,
-								.Plane = 1,
-								.Block = b
-							};*/
 							Report(1, "Erase nand block:%lu... ", addr.Block);
 							uint32_t stik = HAL_GetTick();
 							if (HAL_NAND_Erase_Block(nandPort, &addr) != HAL_OK) devError |= devNAND;
@@ -1615,16 +1708,13 @@ void defThread(void *argument)
 				break;
 			}
 			if (nand_show) {
-				//
 				showBuf(nand_show, readed, nandAdr, nandLen, rdBuf);
-				//
 			}
 		}
 
 		// Erase all blocks (chipConf.BlockNbr)
 		if (next_block_erase) {
 			clr.Block = iBlk;
-			//clr.Page = nand_BlockToPage(iBlk);
 			iBlk++;
 			if (HAL_NAND_Erase_Block(nandPort, &clr) != HAL_OK) {
 				devError |= devNAND;
@@ -1638,8 +1728,6 @@ void defThread(void *argument)
 		//
 		osDelay(5);
 	}
-
-	//ipsOn(0);
 
 	if (wrBuf) free(wrBuf);
 	if (rdBuf) free(rdBuf);
@@ -1688,7 +1776,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-
+	errLedOn(true);
   /* USER CODE END Error_Handler_Debug */
 }
 

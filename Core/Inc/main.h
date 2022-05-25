@@ -68,7 +68,8 @@ enum {
 	cmdNext,
 	cmdWrite,
 	cmdErase,
-	cmdCheck
+	cmdCheck,
+	cmdArea
 };
 
 /**/
@@ -119,7 +120,7 @@ typedef struct {
 //#define SET_SWV
 
 
-#define MAX_CMDS 7
+#define MAX_CMDS 8
 #define MAX_LEN_DATA 512//256
 #define MAX_SCR_BUF 1024
 
