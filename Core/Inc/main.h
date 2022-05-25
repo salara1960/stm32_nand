@@ -118,10 +118,10 @@ typedef struct {
 
 //#define SET_SWV
 
-#define BACK_SPACE 8
 
 #define MAX_CMDS 7
 #define MAX_LEN_DATA 512//256
+#define MAX_SCR_BUF 1024
 
 #define MAX_UART_BUF (MAX_LEN_DATA << 2)//1024
 #define MAX_NAND_STATE 4

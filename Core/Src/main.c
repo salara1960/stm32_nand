@@ -91,7 +91,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.0.9 (21.05.2022)";
 //const char *version = "ver.1.0 (23.05.2022)";
 //const char *version = "ver.1.0.1 (23.05.2022)";
-const char *version = "ver.1.1 (24.05.2022)";
+//const char *version = "ver.1.1 (24.05.2022)";
+const char *version = "ver.1.2 (25.05.2022)";
 
 
 
@@ -119,7 +120,7 @@ bool uartRdy = true;
 bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
-uint32_t epoch = 1653429311;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
+static uint32_t epoch = 1653474923;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
 uint8_t tZone = 0;//2;
 
 SPI_HandleTypeDef *ipsPort = &hspi1;
@@ -281,7 +282,7 @@ int main(void)
 
   HAL_UART_Receive_IT(logPort, &rxByte, 1);
 
-  set_Date(epoch);
+  //set_Date(epoch);
 
   ST7789_Reset();
   ST7789_Init(back_color);
@@ -457,6 +458,8 @@ static void MX_RTC_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN RTC_Init 2 */
+
+  set_Date(epoch);
 
   /* USER CODE END RTC_Init 2 */
 
@@ -1102,11 +1105,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart->Instance == USART3) {// logPort - log
 
-		if (rxByte == BACK_SPACE) {
-			if (ruk) ruk--;
-		} else {
-			rxBuf[ruk++] = (char)rxByte;
-		}
+		rxBuf[ruk++] = (char)rxByte;
+
 		if (rxByte == 0x0a) {//end of line
 			rxBuf[--ruk] = '\0';
 			char *uk = NULL;
@@ -1137,19 +1137,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							cmd_flag = 1;
 						break;
 						case cmdEpoch:
+							qcmd.cmd = cmdEpoch;
 							if (*uk == '?') {
-								qcmd.cmd = cmdEpoch;
 								qcmd.attr = 1;
 								cmd_flag = 1;
 							} else {
-								if (strlen(uk) < 10) setDate = false;
-								else {
-									uint32_t ep = (uint32_t)atol(uk);
-									if (ep > epoch) {
-										epoch = ep;
-										qcmd.cmd = cmdEpoch;
-										cmd_flag = 1;
+								if (strlen(uk) < 10) {
+									setDate = false;
+								} else {
+									uki = strchr(uk, ':');
+									if (uki) {
+										tZone = (uint8_t)atol(uki + 1);
+										*uki = '\0';
+									} else {
+										tZone = 0;
 									}
+									epoch = (uint32_t)atol(uk);
+									cmd_flag = 1;
 								}
 							}
 						break;
@@ -1247,7 +1251,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				}
 			}
 			ruk = 0;
-			memset(rxBuf, 0, MAX_UART_BUF);
+			*rxBuf = '\0';
+			//memset(rxBuf, 0, MAX_UART_BUF);
 		}
 
 		HAL_UART_Receive_IT(huart, &rxByte, 1);
@@ -1383,8 +1388,10 @@ void defThread(void *argument)
 		osThreadExit();
 	}*/
 
+
+
 #ifdef SET_SWV
-	char stz[MAX_TMP_SIZE];
+	char stz[MAX_SCR_BUF];
 #endif
 
 
@@ -1420,15 +1427,16 @@ void defThread(void *argument)
 	Report(1, "%s%s", stx, eol);
 
 
+	char screen[MAX_SCR_BUF];
 	uint16_t err_color = BLACK;
 	ST7789_Fill(0, 0, ST7789_WIDTH - 1, fntKey->height, YELLOW);
 	ST7789_Fill(0, ST7789_WIDTH - fntKey->height, ST7789_WIDTH - 1, ST7789_HEIGHT - 1, WHITE);
 
-	sprintf(stx, "NAND : %s", cid);
-	mkLineCenter(stx, ST7789_WIDTH / tFont->width);
+	sprintf(screen, "NAND : %s", cid);
+	mkLineCenter(screen, ST7789_WIDTH / tFont->width);
 	//sprintf(stx+strlen(stx), "Maker:0x%02X\nchipID:0x%02X\n3-rd:0x%02X\n4-th:0x%02X\n5-th:0x%02X",
 	//		                 nandID.Maker_Id, nandID.Device_Id, nandID.Third_Id, nandID.Fourth_Id, nandID.Plane_Id);
-	sprintf(stx+strlen(stx),
+	sprintf(screen+strlen(screen),
 			"PageSize:%lu\nSpareAreaSize:%lu\nBlockSize:%lu KB\nBlockNbr:%lu\nPlaneNbr:%lu\nPlaneSize:%lu MB",
 			chipConf.PageSize,
 			chipConf.SpareAreaSize,
@@ -1436,10 +1444,10 @@ void defThread(void *argument)
 			chipConf.BlockNbr,
 			chipConf.PlaneNbr,
 			chipConf.PlaneSize / 1024 / 1024);
-	if (cb_nandCounter) sprintf(stx+strlen(stx), "\nCallBack:%lu", cb_nandCounter);
+	if (cb_nandCounter) sprintf(screen+strlen(screen), "\nCallBack:%lu", cb_nandCounter);
 	ST7789_WriteString(0,
 					   tFont->height + (tFont->height * 0.85),
-					   stx,
+					   screen,
 					   *tFont,
 					   ~back_color,
 					   back_color);
@@ -1461,15 +1469,15 @@ void defThread(void *argument)
 		if (check_tmr(tmr)) {
 			tmr = get_tmr(1);
 			//
-			sec2str(stx);
+			sec2str(screen);
 #ifdef SET_SWV
-			strcpy(stz, stx);
+			strcpy(stz, screen);
 #endif
-			ST7789_WriteString(8, 0, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, BLUE, YELLOW);
+			ST7789_WriteString(8, 0, mkLineCenter(screen, ST7789_WIDTH / fntKey->width), *fntKey, BLUE, YELLOW);
 
-			sprintf(stx, "Error: 0x%02X", devError);
+			sprintf(screen, "Error: 0x%02X", devError);
 			if (devError) err_color = RED; else err_color = BLACK;
-			ST7789_WriteString(0, ST7789_WIDTH - fntKey->height, mkLineCenter(stx, ST7789_WIDTH / fntKey->width), *fntKey, err_color, WHITE);
+			ST7789_WriteString(0, ST7789_WIDTH - fntKey->height, mkLineCenter(screen, ST7789_WIDTH / fntKey->width), *fntKey, err_color, WHITE);
 			//
 #ifdef SET_SWV
 			//puts("Second...");
@@ -1496,7 +1504,15 @@ void defThread(void *argument)
 				Report(1, "OS: %s%s", get_qStat(qStat), eol);
 			}
 		} else {
+			sprintf(screen, "Cmd: %s", str_cmds[qcmd.cmd]);
+			ST7789_WriteString(0, ST7789_WIDTH - (fntKey->height << 1),
+							   mkLineCenter(screen, ST7789_WIDTH / fntKey->width),
+							   *fntKey,
+							   CYAN,
+							   BLACK);
+			//
 			Report(1, "Command(%u.%u): '%s'%s", qcmd.cmd, qcmd.attr, str_cmds[qcmd.cmd], eol);
+			//
 			nand_show = 0;
 			switch (qcmd.cmd) {
 				case cmdRestart:
@@ -1623,11 +1639,10 @@ void defThread(void *argument)
 		osDelay(5);
 	}
 
-	ipsOn(0);
+	//ipsOn(0);
 
 	if (wrBuf) free(wrBuf);
 	if (rdBuf) free(rdBuf);
-	//if (stx) free(stx);
 
 
 	Report(1, "%s Стоп '%s' memory:%lu/%lu bytes ...%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
