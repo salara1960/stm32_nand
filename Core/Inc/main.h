@@ -34,6 +34,8 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 
 #include "stm32f4xx_ll_fsmc.h"
+#include "stm32f4xx_hal_nand.h"
+
 
 #include <malloc.h>
 #include <stdbool.h>
@@ -69,7 +71,8 @@ enum {
 	cmdWrite,
 	cmdErase,
 	cmdCheck,
-	cmdArea
+	cmdArea,
+	cmdSave
 };
 
 /**/
@@ -120,7 +123,7 @@ typedef struct {
 //#define SET_SWV
 
 
-#define MAX_CMDS 8
+#define MAX_CMDS 9//8
 #define MAX_LEN_DATA 512//256
 #define MAX_SCR_BUF 1024
 
