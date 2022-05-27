@@ -72,8 +72,18 @@ enum {
 	cmdErase,
 	cmdCheck,
 	cmdArea,
-	cmdSave
+	cmdSave,
+	cmdLog,
+	cmdHelp
 };
+
+enum {
+	logOff = 0,
+	logOn,
+	logDump,
+	logNone
+};
+
 
 /**/
 #pragma pack(push,1)
@@ -117,19 +127,20 @@ typedef struct {
 /* USER CODE BEGIN EM */
 
 
+
 #define MY_NAND_DEVICE 0x70000000L
 
 
 //#define SET_SWV
 
 
-#define MAX_CMDS 9//8
-#define MAX_LEN_DATA 512//256
-#define MAX_SCR_BUF 1024
+#define MAX_CMDS       11//9//8
+#define MAX_LEN_DATA  512//256
+#define MAX_SCR_BUF  1024
 
-#define MAX_UART_BUF (MAX_LEN_DATA << 2)//1024
-#define MAX_NAND_STATE 4
-#define MAX_NAND_BUF 8192
+#define MAX_UART_BUF     (MAX_LEN_DATA << 2)//1024
+#define MAX_NAND_STATE   4
+#define MAX_NAND_BUF   8192
 
 #define LOOP_FOREVER() while(1) { HAL_Delay(1); }
 #define HTONS(x) ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
