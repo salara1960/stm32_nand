@@ -60,7 +60,8 @@ enum {
 	devRTC = 8,
 	devSPI = 0x10,
 	devNAND = 0x20,
-	devQUE = 0x40
+	devQUE = 0x40,
+	devSYS = 0x80
 };
 
 enum {
