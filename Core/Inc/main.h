@@ -61,7 +61,8 @@ enum {
 	devSPI = 0x10,
 	devNAND = 0x20,
 	devQUE = 0x40,
-	devSYS = 0x80
+	devSYS = 0x80,
+	devFS = 0x100
 };
 
 enum {
@@ -129,10 +130,14 @@ typedef struct {
 
 
 
+
+
 #define MY_NAND_DEVICE 0x70000000L
 
 
 //#define SET_SWV
+#define SET_FAT_FS
+
 
 
 #define MAX_CMDS       11//9//8
@@ -150,6 +155,18 @@ typedef struct {
 #ifdef SET_SWV
 	#define MAX_TMP_SIZE 256
 #endif
+
+extern uint8_t Report(const uint8_t addTime, const char *fmt, ...);
+extern uint32_t nand_getPageSize();
+extern uint32_t nand_getPageCount();
+extern uint32_t nand_getBlockSize();
+extern uint32_t nand_getBlockCount();
+HAL_StatusTypeDef nand_ReadPage(uint32_t page, uint8_t *buf);
+HAL_StatusTypeDef nand_WritePage(uint32_t page, uint8_t *buf);
+HAL_StatusTypeDef nand_EraseBlock(uint32_t block);
+extern bool pageIsEmpty(uint32_t page);
+extern uint32_t nand_PageToBlock(const uint32_t page);
+extern uint32_t nand_BlockToPage(const uint32_t blk);
 
 /* USER CODE END EM */
 
@@ -213,11 +230,12 @@ void Error_Handler(void);
 #define NCE2_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
-extern uint8_t devError;
+extern uint16_t devError;
 extern UART_HandleTypeDef *uartPort;
 extern SPI_HandleTypeDef *ipsPort;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 extern bool spiRdy;
+extern NAND_HandleTypeDef *nandPort;
 
 /* USER CODE END Private defines */
 

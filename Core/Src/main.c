@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -63,8 +64,8 @@ NAND_HandleTypeDef hnand1;
 osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
-  .stack_size = 1024 * 4,
-  .priority = (osPriority_t)osPriorityNormal,
+  .stack_size = 1792 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for myQue */
 osMessageQueueId_t myQueHandle;
@@ -95,7 +96,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.2 (25.05.2022)";
 //const char *version = "ver.1.2.1 (26.05.2022)";
 //const char *version = "ver.1.2.2 (26.05.2022)";
-const char *version = "ver.1.2.3 (27.05.2022)";
+//const char *version = "ver.1.2.3 (27.05.2022)";
+const char *version = "ver.1.3 (30.05.2022)";
 
 
 
@@ -112,7 +114,7 @@ const char *s_cmds[MAX_CMDS] = {
 		"save:",
 		"log:",
 		"help"};
-uint8_t devError;
+uint16_t devError;
 uint8_t cmd_flag = 0;
 const char *str_cmds[MAX_CMDS] = {
 	"Restart",
@@ -139,7 +141,7 @@ bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 //1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
-static uint32_t epoch = 1653681746;//1653652854;//1653602199;//1653563627;
+static uint32_t epoch = 1653916490;//1653681746;//1653652854;//1653602199;//1653563627;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
 
@@ -176,6 +178,15 @@ uint8_t *wrBuf = NULL;
 osStatus_t qStat;
 char stx[MAX_UART_BUF];
 
+#ifdef SET_FAT_FS
+	FATFS FatFs;
+	const char *cfg = "conf.cfg";
+	bool mnt = false;
+	const char *dirName = "/";
+	bool cat_flag = false;
+	const char *_cat  = "cat";
+	unsigned char fs_work[_MAX_SS] = {0};
+#endif
 
 /* USER CODE END PV */
 
@@ -192,7 +203,7 @@ void defThread(void *argument);
 
 /* USER CODE BEGIN PFP */
 
-HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID);
+
 uint32_t get_tmr(uint32_t sec);
 bool check_tmr(uint32_t sec);
 void errLedOn(bool on);
@@ -200,8 +211,9 @@ void set_Date(uint32_t usec);
 uint32_t getSecRTC(RTC_HandleTypeDef *hrtc);
 int sec2str(char *st);
 uint8_t Report(const uint8_t addTime, const char *fmt, ...);
-uint32_t nand_PageToBlock(const uint32_t page);
-uint32_t nand_BlockToPage(const uint32_t blk);
+HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID);
+
+
 
 /* USER CODE END PFP */
 
@@ -294,6 +306,7 @@ int main(void)
   MX_FSMC_Init();
   MX_USART3_UART_Init();
   MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -315,6 +328,7 @@ int main(void)
 
   ST7789_Reset();
   ST7789_Init(back_color);
+
 
 
   /* USER CODE END 2 */
@@ -340,7 +354,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of myQue */
-  myQueHandle = osMessageQueueNew (16, sizeof(s_qcmd), &myQue_attributes);
+  myQueHandle = osMessageQueueNew (16, sizeof(uint16_t), &myQue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -367,9 +381,9 @@ int main(void)
 
     LOOP_FOREVER();
 
-  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-  /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
 }
 
@@ -751,6 +765,36 @@ static void MX_FSMC_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+//-----------------------------------------------------------------------------
+uint32_t nand_getPageSize()
+{
+	return chipConf.PageSize;
+}
+//-----------------------------------------------------------------------------
+uint32_t nand_getPageCount()
+{
+	return ((chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr);
+}
+//-----------------------------------------------------------------------------
+uint32_t nand_getBlockSize()
+{
+	return chipConf.BlockSize;
+}
+//-----------------------------------------------------------------------------
+uint32_t nand_getBlockCount()
+{
+	return chipConf.BlockNbr;
+}
+//-----------------------------------------------------------------------------
+uint32_t nand_PageToBlock(const uint32_t page)
+{
+    return (page * chipConf.PageSize) / chipConf.BlockSize;
+}
+//-----------------------------------------------------------------------------
+uint32_t nand_BlockToPage(const uint32_t blk)
+{
+	return (blk * chipConf.BlockSize) / chipConf.PageSize;
+}
 //-----------------------------------------------------------------------------
 
 HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND_ID)
@@ -1154,6 +1198,210 @@ uint32_t block = nand_PageToBlock(page);
 	return ret;
 }
 //-----------------------------------------------------------------------------
+HAL_StatusTypeDef nand_ReadPage(uint32_t page, uint8_t *buf)
+{
+	NAND_AddressTypeDef nans = {
+		.Page = page,
+		.Plane = 1,
+		.Block = nand_PageToBlock(page)
+	};
+
+	return NAND_Read_Page_8b(nandPort, &nans, buf, 1);
+}
+//-----------------------------------------------------------------------------
+HAL_StatusTypeDef nand_WritePage(uint32_t page, uint8_t *buf)
+{
+	NAND_AddressTypeDef nans = {
+		.Page = page,
+		.Plane = 1,
+		.Block = nand_PageToBlock(page)
+	};
+
+	return NAND_Write_Page_8b(nandPort, &nans, buf, 1);
+}
+//-----------------------------------------------------------------------------
+HAL_StatusTypeDef nand_EraseBlock(uint32_t block)
+{
+	NAND_AddressTypeDef nans = {
+		.Page = nand_BlockToPage(block),
+		.Plane = 1,
+		.Block = block
+	};
+
+	return NAND_Erase_Block(nandPort, &nans, 0);
+}
+//-----------------------------------------------------------------------------
+#ifdef SET_FAT_FS
+
+static char *fsErrName(int fr)
+{
+	switch (fr) {
+		case FR_OK:				// (0) Succeeded
+			return "Succeeded";
+		case FR_DISK_ERR://			(1) A hard error occurred in the low level disk I/O layer
+			return "Error disk I/O";
+		case FR_INT_ERR://			(2) Assertion failed
+			return "Assertion failed";
+		case FR_NOT_READY://		(3) The physical drive cannot work
+			return "Drive not ready";
+		case FR_NO_FILE://			(4) Could not find the file
+			return "No file";
+		case FR_NO_PATH://			(5) Could not find the path
+			return "No path";
+		case FR_INVALID_NAME://		(6) The path name format is invalid
+			return "Path error";
+		case FR_DENIED://			(7) Access denied due to prohibited access or directory full
+		case FR_EXIST://			(8) Access denied due to prohibited access
+			return "Access denied";
+		case FR_INVALID_OBJECT://	(9) The file/directory object is invalid
+			return "Invalid file/dir";
+		case FR_WRITE_PROTECTED://	(10) The physical drive is write protected
+			return "Write protected";
+		case FR_INVALID_DRIVE://	(11) The logical drive number is invalid
+			return "Invalid drive number";
+		case FR_NOT_ENABLED://		(12) The volume has no work area
+			return "Volume no area";
+		case FR_NO_FILESYSTEM://	(13) There is no valid FAT volume
+			return "Volume has't filesystem";
+		case FR_MKFS_ABORTED://		(14) The f_mkfs() aborted due to any problem
+			return "f_mkfs() aborted";
+		case FR_TIMEOUT://			(15) Could not get a grant to access the volume within defined period
+			return "Timeout access";
+		case FR_LOCKED://			(16) The operation is rejected according to the file sharing policy
+			return "File locked";
+		case FR_NOT_ENOUGH_CORE://	(17) LFN working buffer could not be allocated
+			return "Allocated buf error";
+		case FR_TOO_MANY_OPEN_FILES://	(18) Number of open files > _FS_LOCK
+			return "Open file limit";
+		case FR_INVALID_PARAMETER://	(19) Given parameter is invalid
+			return "Invalid parameter";
+	}
+	return "Unknown error";
+}
+//------------------------------------------------------------------------------------------
+static char *attrName(uint8_t attr)
+{
+	switch (attr) {
+		case AM_RDO://	0x01	/* Read only */
+			return "Read only";
+		case AM_HID://	0x02	/* Hidden */
+			return "Hidden";
+		case AM_SYS://	0x04	/* System */
+			return "System";
+		case AM_DIR://	0x10	/* Directory */
+			return "Directory";
+		case AM_ARC://	0x20	/* Archive */
+			return "Archive";
+		default : return "Unknown";
+	}
+}
+//------------------------------------------------------------------------------------------
+bool drvMount(const char *path)
+{
+bool ret = false;
+
+
+	FRESULT res = f_mount(&FatFs, path, 1);
+	if (res == FR_NO_FILESYSTEM) {
+		Report(1, "[%s] Mount drive '%s' error #%u (%s)%s", __func__, path, res, fsErrName(res), eol);
+		res = f_mkfs(path, FM_FAT, nand_getBlockSize(), fs_work, sizeof(fs_work));
+		if (!res) {
+			Report(1, "[%s] Make FAT fs on drive '%s' OK%s", __func__, path, eol);
+			res = f_mount(&FatFs, path, 1);
+    	} else {
+    		Report(1, "[%s] Make FAT fs error #%u (%s)%s", __func__, res, fsErrName(res), eol);
+    	}
+	}
+	if (!res) {
+		ret = true;
+		Report(1, "[%s] Mount drive '%s' OK%s", __func__, path, eol);
+	} else {
+		Report(1, "[%s] Mount drive '%s' error #%u (%s)%s", __func__, path, res, fsErrName(res), eol);
+	}
+
+	return ret;
+}
+//--------------------------------------------------------------------------------------------------------
+void dirList(const char *name_dir)
+{
+DIR dir;
+
+	FRESULT res = f_opendir(&dir, name_dir);
+	if (!res) {
+		FILINFO fno;
+		int cnt = -1;
+		Report(1, "[%s] Read folder '%s':%s", __func__, name_dir, eol);
+		for (;;) {
+			res = f_readdir(&dir, &fno);
+			cnt++;
+			if (res || fno.fname[0] == 0) {
+				if (!cnt) Report(0, "\tFolder '%s' is empty%s", name_dir, eol);
+				break;
+			} else if (fno.fattrib & AM_DIR) {// It is a directory
+				Report(0, "\tIt is folder -> '%s'%s", fno.fname, eol);
+			} else {// It is a file.
+				Report(0, "\tname:%s, size:%u bytes, attr:%s%s",
+							fno.fname,
+							fno.fsize,
+							attrName(fno.fattrib),
+							eol);
+			}
+		}
+		f_closedir(&dir);
+	}
+}
+//--------------------------------------------------------------------------------------------------------
+void wrFile(const char *name, char *text, bool update)
+{
+char tmp[128];
+FIL fp;
+FRESULT res = FR_NO_FILE;
+
+	sprintf(tmp, "/%s", cfg);
+	if (!update) {
+		res = f_open(&fp, tmp, FA_READ);
+		if (res == FR_OK) {
+			res = f_close(&fp);
+			Report(1, "[%s] File '%s' allready present and update has't been ordered%s", __func__, tmp, eol);
+			return;
+		}
+	}
+
+	res = f_open(&fp, tmp, FA_CREATE_ALWAYS | FA_WRITE);
+	if (!res) {
+		Report(1, "[%s] Create new file '%s' OK%s", __func__, tmp, eol);
+		int wrt = 0, dl = strlen(text);
+
+		wrt = f_puts(text, &fp);
+		if (wrt != dl) {
+			devError |= devFS;
+			Report(1, "[%s] Error while write file '%s'%s", __func__, tmp, eol);
+		} else Report(1, "[%s] File file '%s' write OK%s", __func__, tmp, eol);
+
+		res = f_close(&fp);
+	} else Report(1, "[%s] Create new file '%s' error #%u (%s)%s", __func__, tmp, res, fsErrName(res), eol);
+
+}
+//--------------------------------------------------------------------------------------------------------
+void rdFile(const char *name)
+{
+char tmp[128];
+FIL fp;
+
+	if (!f_open(&fp, name, FA_READ)) {
+		Report(1, "[%s] File '%s' open for reading OK%s", __func__, name, eol);
+
+		while (f_gets(tmp, sizeof(tmp) - 1, &fp) != NULL)
+			Report(0, "%s", tmp);
+
+		f_close(&fp);
+	} else Report(1, "[%s] Error while open for reading file '%s'%s", __func__, name, eol);
+
+}
+//--------------------------------------------------------------------------------------------------------
+
+#endif
+//-----------------------------------------------------------------------------
 static const char *get_qStat(osStatus_t osStat)
 {
 	switch (osStat) {
@@ -1402,6 +1650,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 														  //"check:"
 														  //"area:"
 														  //"save:"
+														  //"log:"
+														  //"help"
 						idx = i;
 						break;
 					}
@@ -1582,16 +1832,6 @@ void SPI_DMATransmitCplt(DMA_HandleTypeDef *hdma)
 }
 */
 //-------------------------------------------------------------------------------------------
-uint32_t nand_PageToBlock(const uint32_t page)
-{
-    return (page * chipConf.PageSize) / chipConf.BlockSize;
-}
-//-------------------------------------------------------------------------------------------
-uint32_t nand_BlockToPage(const uint32_t blk)
-{
-	return (blk * chipConf.BlockSize) / chipConf.PageSize;
-}
-//-------------------------------------------------------------------------------------------
 void showBuf(uint8_t type, bool rd, uint32_t adr, uint32_t len, const uint8_t *buf)
 {
 int step = 32;
@@ -1659,6 +1899,36 @@ void defThread(void *argument)
 		Report(0, "%s", eol);
 		Report(1, "%s Старт '%s' memory:%lu/%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 	}
+
+#ifdef SET_FAT_FS
+
+	memcpy(USERPath, "NAND", 4);
+
+	//mnt = drvMount(USERPath);
+    if (mnt) {
+//      	  dirList(dirName);
+      	  /*
+      	  sprintf(stx,"#Configuration file:%s"
+      				  "PageSize:%lu%s"
+      			  	  "SpareAreaSize:%lu%s"
+      			  	  "BlockSize:%lu KB%s"
+      			  	  "BlockNbr:%lu%s"
+      			  	  "PlaneNbr:%lu%s"
+      			  	  "PlaneSize:%lu MB%s",
+					  eol,
+					  chipConf.PageSize, eol,
+					  chipConf.SpareAreaSize, eol,
+					  chipConf.BlockSize / 1024, eol,
+					  chipConf.BlockNbr, eol,
+					  chipConf.PlaneNbr, eol,
+					  chipConf.PlaneSize / 1024 / 1024,  eol);
+      	  wrFile(cfg, stx, false);
+      	  rdFile(cfg);
+      	  */
+    }
+#endif
+
+
 
 	uint8_t next_block_erase = 0;
 	uint32_t iBlk, stik;
@@ -1732,7 +2002,7 @@ void defThread(void *argument)
 #endif
 			ST7789_WriteString(8, 0, mkLineCenter(screen, ST7789_WIDTH / fntKey->width), *fntKey, BLUE, YELLOW);
 
-			sprintf(screen, "Error: 0x%02X", devError);
+			sprintf(screen, "Error: 0x%04X", devError);
 			if (devError) err_color = RED; else err_color = BLACK;
 			ST7789_WriteString(0, ST7789_WIDTH - fntKey->height, mkLineCenter(screen, ST7789_WIDTH / fntKey->width), *fntKey, err_color, WHITE);
 			//
@@ -1988,6 +2258,13 @@ void Error_Handler(void)
   /* User can add his own implementation to report the HAL error return state */
 
 	devError |= devSYS;
+
+	int8_t cnt = 10;
+	while (--cnt) {
+		errLedOn(true);
+		errLedOn(false);
+		HAL_Delay(150);
+	}
 	errLedOn(true);
 
   /* USER CODE END Error_Handler_Debug */
