@@ -64,7 +64,7 @@ NAND_HandleTypeDef hnand1;
 osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
-  .stack_size = 1792 * 4,
+  .stack_size = 2048 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for myQue */
@@ -141,7 +141,7 @@ bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 //1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
-static uint32_t epoch = 1653916490;//1653681746;//1653652854;//1653602199;//1653563627;
+static uint32_t epoch = 1653948390;//1653916490;//1653681746;//1653652854;//1653602199;//1653563627;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
 
@@ -172,20 +172,23 @@ const char *nandAllState[MAX_NAND_STATE] = {
 	"HAL_NAND_STATE_BUSY", // = 0x02U,   NAND internal process is ongoing
 	"HAL_NAND_STATE_ERROR" // = 0x03U    NAND error state
 };
-uint8_t *rdBuf = NULL;
-uint8_t *wrBuf = NULL;
+uint8_t rdBuf[SECTOR_SIZE] = {0};
+uint8_t wrBuf[SECTOR_SIZE] = {0};
+//rdBuf = (uint8_t *)pvPortMalloc(chipConf.PageSize);//calloc(1, chipConf.PageSize);
+//wrBuf = (uint8_t *)pvPortMalloc(chipConf.PageSize);//calloc(1, chipConf.PageSize);
+
 
 osStatus_t qStat;
 char stx[MAX_UART_BUF];
 
 #ifdef SET_FAT_FS
 	FATFS FatFs;
+	DIR dir;
 	const char *cfg = "conf.cfg";
 	bool mnt = false;
 	const char *dirName = "/";
-	bool cat_flag = false;
-	const char *_cat  = "cat";
 	unsigned char fs_work[_MAX_SS] = {0};
+	bool dir_open = false;
 #endif
 
 /* USER CODE END PV */
@@ -749,10 +752,10 @@ static void MX_FSMC_Init(void)
     	memcpy((uint8_t *)&chipConf, (uint8_t *)&hnand1.Config, sizeof(s_chipConf));
 
     	if ((chipConf.PageSize > 0) && (chipConf.PageSize <= MAX_NAND_BUF)) {
-    		rdBuf = (uint8_t *)calloc(1, chipConf.PageSize);
+    		/*rdBuf = (uint8_t *)calloc(1, chipConf.PageSize);
     		wrBuf = (uint8_t *)calloc(1, chipConf.PageSize);
 
-    		if (!rdBuf || !wrBuf) devError |= devMEM;
+    		if (!rdBuf || !wrBuf) devError |= devMEM;*/
     	} else {
     		devError |= devNAND;
     	}
@@ -1066,7 +1069,7 @@ bool pageIsEmpty(uint32_t page)
 bool ret = false;
 
 	NAND_AddressTypeDef addr = {
-		.Page = (page % (chipConf.BlockSize / chipConf.PageSize)),//page,
+		.Page = page,//(page % (chipConf.BlockSize / chipConf.PageSize)),//page,
 		.Plane = 1,
 		.Block = nand_PageToBlock(page)
 	};
@@ -1299,55 +1302,75 @@ static char *attrName(uint8_t attr)
 bool drvMount(const char *path)
 {
 bool ret = false;
-
+uint8_t lg = dbg;
 
 	FRESULT res = f_mount(&FatFs, path, 1);
 	if (res == FR_NO_FILESYSTEM) {
-		Report(1, "[%s] Mount drive '%s' error #%u (%s)%s", __func__, path, res, fsErrName(res), eol);
+		if (lg > logOff) Report(1, "[%s] Mount drive '%.*s' error #%u (%s)%s", __func__, sizeof(path), path, res, fsErrName(res), eol);
 		res = f_mkfs(path, FM_FAT, nand_getBlockSize(), fs_work, sizeof(fs_work));
 		if (!res) {
-			Report(1, "[%s] Make FAT fs on drive '%s' OK%s", __func__, path, eol);
+			if (lg > logOff) Report(1, "[%s] Make FAT fs on drive '%.*s' OK%s", __func__, sizeof(path), path, eol);
 			res = f_mount(&FatFs, path, 1);
     	} else {
-    		Report(1, "[%s] Make FAT fs error #%u (%s)%s", __func__, res, fsErrName(res), eol);
+    		if (lg > logOff) Report(1, "[%s] Make FAT fs error #%u (%s)%s", __func__, res, fsErrName(res), eol);
+    		return ret;
     	}
 	}
+
 	if (!res) {
 		ret = true;
-		Report(1, "[%s] Mount drive '%s' OK%s", __func__, path, eol);
+		if (lg > logOff) Report(1, "[%s] Mount drive '%.*s' OK%s", __func__, sizeof(path), path, eol);
 	} else {
-		Report(1, "[%s] Mount drive '%s' error #%u (%s)%s", __func__, path, res, fsErrName(res), eol);
+		if (lg > logOff) Report(1, "[%s] Mount drive '%.*s' error #%u (%s)%s", __func__, sizeof(path), path, res, fsErrName(res), eol);
 	}
+
 
 	return ret;
 }
 //--------------------------------------------------------------------------------------------------------
-void dirList(const char *name_dir)
+bool dirList(const char *name_dir, DIR *dir)
 {
-DIR dir;
+bool ret = false;
+uint8_t lg = dbg;
 
-	FRESULT res = f_opendir(&dir, name_dir);
-	if (!res) {
+	FRESULT res = f_opendir(dir, name_dir);
+	if (res == FR_OK) {
 		FILINFO fno;
 		int cnt = -1;
-		Report(1, "[%s] Read folder '%s':%s", __func__, name_dir, eol);
+		if (lg > logOff) Report(1, "[%s] Read folder '%s':%s", __func__, name_dir, eol);
 		for (;;) {
-			res = f_readdir(&dir, &fno);
+			res = f_readdir(dir, &fno);
 			cnt++;
 			if (res || fno.fname[0] == 0) {
-				if (!cnt) Report(0, "\tFolder '%s' is empty%s", name_dir, eol);
+				if (!cnt) {
+					if (lg > logOff) Report(0, "\tFolder '%s' is empty%s", name_dir, eol);
+				}
 				break;
 			} else if (fno.fattrib & AM_DIR) {// It is a directory
-				Report(0, "\tIt is folder -> '%s'%s", fno.fname, eol);
+				if (lg > logOff) Report(0, "\tIt is folder -> '%s'%s", fno.fname, eol);
 			} else {// It is a file.
-				Report(0, "\tname:%s, size:%u bytes, attr:%s%s",
+				if (lg > logOff) Report(0, "\tname:%s, size:%u bytes, attr:%s%s",
 							fno.fname,
 							fno.fsize,
 							attrName(fno.fattrib),
 							eol);
 			}
 		}
-		f_closedir(&dir);
+	} else {
+		if (lg > logOff) Report(1, "[%s] Read folder '%s' error #%u (%s)%s", __func__, name_dir, res, fsErrName(res), eol);
+	}
+	if (res == FR_OK) ret = true;
+
+	return ret;
+}
+//--------------------------------------------------------------------------------------------------------
+void dirClose(const char *name, DIR *dir)
+{
+	FRESULT res = f_closedir(dir);
+	if (res == FR_OK) {
+		if (dbg > logOff) Report(1, "Close folder '%s'%s", name, eol);
+	} else {
+		devError |= devFS;
 	}
 }
 //--------------------------------------------------------------------------------------------------------
@@ -1356,30 +1379,33 @@ void wrFile(const char *name, char *text, bool update)
 char tmp[128];
 FIL fp;
 FRESULT res = FR_NO_FILE;
+uint8_t lg = dbg;
 
 	sprintf(tmp, "/%s", cfg);
 	if (!update) {
 		res = f_open(&fp, tmp, FA_READ);
 		if (res == FR_OK) {
 			res = f_close(&fp);
-			Report(1, "[%s] File '%s' allready present and update has't been ordered%s", __func__, tmp, eol);
+			if (lg > logOff) Report(1, "[%s] File '%s' allready present and update has't been ordered%s", __func__, tmp, eol);
 			return;
 		}
 	}
 
 	res = f_open(&fp, tmp, FA_CREATE_ALWAYS | FA_WRITE);
 	if (!res) {
-		Report(1, "[%s] Create new file '%s' OK%s", __func__, tmp, eol);
+		if (lg > logOff) Report(1, "[%s] Create new file '%s' OK%s", __func__, tmp, eol);
 		int wrt = 0, dl = strlen(text);
 
 		wrt = f_puts(text, &fp);
 		if (wrt != dl) {
 			devError |= devFS;
-			Report(1, "[%s] Error while write file '%s'%s", __func__, tmp, eol);
+			if (lg > logOff) Report(1, "[%s] Error while write file '%s'%s", __func__, tmp, eol);
 		} else Report(1, "[%s] File file '%s' write OK%s", __func__, tmp, eol);
 
 		res = f_close(&fp);
-	} else Report(1, "[%s] Create new file '%s' error #%u (%s)%s", __func__, tmp, res, fsErrName(res), eol);
+	} else {
+		if (lg > logOff) Report(1, "[%s] Create new file '%s' error #%u (%s)%s", __func__, tmp, res, fsErrName(res), eol);
+	}
 
 }
 //--------------------------------------------------------------------------------------------------------
@@ -1387,15 +1413,18 @@ void rdFile(const char *name)
 {
 char tmp[128];
 FIL fp;
+uint8_t lg = dbg;
 
 	if (!f_open(&fp, name, FA_READ)) {
-		Report(1, "[%s] File '%s' open for reading OK%s", __func__, name, eol);
+		if (lg > logOff) Report(1, "[%s] File '%s' open for reading OK%s", __func__, name, eol);
 
 		while (f_gets(tmp, sizeof(tmp) - 1, &fp) != NULL)
-			Report(0, "%s", tmp);
+			if (lg > logOff) Report(0, "%s", tmp);
 
 		f_close(&fp);
-	} else Report(1, "[%s] Error while open for reading file '%s'%s", __func__, name, eol);
+	} else {
+		if (lg > logOff) Report(1, "[%s] Error while open for reading file '%s'%s", __func__, name, eol);
+	}
 
 }
 //--------------------------------------------------------------------------------------------------------
@@ -1887,7 +1916,9 @@ void defThread(void *argument)
   /* USER CODE BEGIN 5 */
 
 
-
+	/*rdBuf = (uint8_t *)pvPortMalloc(chipConf.PageSize);//calloc(1, chipConf.PageSize);
+	wrBuf = (uint8_t *)pvPortMalloc(chipConf.PageSize);//calloc(1, chipConf.PageSize);
+	if (!rdBuf || !wrBuf) devError |= devMEM;*/
 
 #ifdef SET_SWV
 	char stz[MAX_SCR_BUF];
@@ -1902,13 +1933,15 @@ void defThread(void *argument)
 
 #ifdef SET_FAT_FS
 
+
 	memcpy(USERPath, "NAND", 4);
 
-	//mnt = drvMount(USERPath);
+	mnt = drvMount(USERPath);
     if (mnt) {
-//      	  dirList(dirName);
-      	  /*
-      	  sprintf(stx,"#Configuration file:%s"
+      	  dir_open = dirList(dirName, &dir);
+      	  /**/
+      	  if (dir_open) {
+      		  sprintf(stx,"#Configuration file:%s"
       				  "PageSize:%lu%s"
       			  	  "SpareAreaSize:%lu%s"
       			  	  "BlockSize:%lu KB%s"
@@ -1922,9 +1955,10 @@ void defThread(void *argument)
 					  chipConf.BlockNbr, eol,
 					  chipConf.PlaneNbr, eol,
 					  chipConf.PlaneSize / 1024 / 1024,  eol);
-      	  wrFile(cfg, stx, false);
-      	  rdFile(cfg);
-      	  */
+      		  wrFile(cfg, stx, false);
+      		  rdFile(cfg);
+      	  }
+      	  /**/
     }
 #endif
 
@@ -2077,17 +2111,18 @@ void defThread(void *argument)
 					};
 					if (dbg != logOff) Report(1, "Read nand adr:0x%X len:%lu (page:%lu blk:%lu)%s",
 							  	  	  	  	  	  nandAdr, nandLen, addr.Page, addr.Block, eol);
-					if (rdBuf) {
+					//if (rdBuf) {
 						if (NAND_Read_Page_8b(nandPort, &addr, rdBuf, 1) == HAL_OK) {
 							nand_show = 1;
 							readed = true;
 						} else devError |= devNAND;
-					}
+					//}
 				}
 				break;
 				case cmdNext:
 					if (dbg != logOff) Report(1, "Read next nand adr:0x%X len:%lu%s", nandAdr, nandLen, eol);
-					if (rdBuf) nand_show = 2;
+					//if (rdBuf)
+						nand_show = 2;
 				break;
 				case cmdErase:
 					clr.Page = 0;
@@ -2121,7 +2156,7 @@ void defThread(void *argument)
 				break;
 				case cmdWrite:
 				case cmdArea:
-					if (wrBuf) {
+					//if (wrBuf) {
 						//
 						if (qcmd.cmd == cmdArea) {
 							if (!areaIsEmpty(nandAdr, nandLen)) {
@@ -2153,26 +2188,26 @@ void defThread(void *argument)
 						if (NAND_Write_Page_8b(nandPort, &addr, wrBuf, 1) != HAL_OK) devError |= devNAND;
 						if (dbg != logOff) Report(1, "Write nand adr:0x%X ofs:%lu byte:0x%02X len:%lu (page:%lu blk:%lu)%s",
 							      	  	  	  	  	  nandAdr, ofs, nandByte, nandLen, addr.Page, addr.Block, eol);
-					}
+					//}
 				break;
 				case cmdSave:
-					if (wrBuf) {
-						uint32_t page = (nandAdr - devAdr) / chipConf.PageSize;
-						NAND_AddressTypeDef nans = {
-							.Page = (page % (chipConf.BlockSize / chipConf.PageSize)),
-							.Plane = 1,
-							.Block = nand_PageToBlock(page)
-						};
-						int shift = emptyArea(nandAdr, nandLen, wrBuf, &nans);
-						if (shift == -1) {
-							if (dbg != logOff) if (dbg != logOff) Report(1, "Area Not empty. Process not alow%s", eol);
-							break;
-						} else {
-							memset(wrBuf + shift, nandByte, nandLen);
-							if (HAL_NAND_Write_Page_8b(nandPort, &nans, wrBuf, 1) != HAL_OK) devError |= devNAND;
-							//showBuf(1, false, devAdr, 512,/*nandAdr, nandLen,*/ wrBuf);
-							if (dbg != logOff)
-								Report(1, "Save nand mem_adr:0x%X adr:0x%X shift:%lu byte:0x%02X len:%lu (page:%lu block:%lu)%s",
+				{
+					uint32_t page = (nandAdr - devAdr) / chipConf.PageSize;
+					NAND_AddressTypeDef nans = {
+						.Page = (page % (chipConf.BlockSize / chipConf.PageSize)),
+						.Plane = 1,
+						.Block = nand_PageToBlock(page)
+					};
+					int shift = emptyArea(nandAdr, nandLen, wrBuf, &nans);
+					if (shift == -1) {
+						if (dbg != logOff) if (dbg != logOff) Report(1, "Area Not empty. Process not alow%s", eol);
+						break;
+					} else {
+						memset(wrBuf + shift, nandByte, nandLen);
+						if (HAL_NAND_Write_Page_8b(nandPort, &nans, wrBuf, 1) != HAL_OK) devError |= devNAND;
+						//showBuf(1, false, devAdr, 512,/*nandAdr, nandLen,*/ wrBuf);
+						if (dbg != logOff)
+							Report(1, "Save nand mem_adr:0x%X adr:0x%X shift:%lu byte:0x%02X len:%lu (page:%lu block:%lu)%s",
 									  ARRAY_ADDRESS(&nans, nandPort),
 									  nandAdr,
 									  shift,
@@ -2181,8 +2216,8 @@ void defThread(void *argument)
 									  nans.Page,
 									  nans.Block,
 									  eol);
-						}
 					}
+				}
 				break;
 			}
 			if (nand_show) {
@@ -2209,9 +2244,20 @@ void defThread(void *argument)
 		osDelay(5);
 	}
 
-	if (wrBuf) free(wrBuf);
-	if (rdBuf) free(rdBuf);
+	//if (wrBuf) vPortFree(wrBuf);//free(wrBuf);
+	//if (rdBuf) vPortFree(rdBuf);//free(rdBuf);
 
+#ifdef SET_FAT_FS
+	/*if (dir_open) {
+		dirClose(dirName, &dir);
+		dir_open = false;
+	}*/
+	if (mnt) {
+		f_mount(NULL, USERPath, 1);
+		mnt = false;
+		if (dbg != logOff) Report(1, "Umount drive '%.*s'%s", sizeof(USERPath), USERPath, eol);
+	}
+#endif
 
 	if (dbg != logOff) Report(1, "%s Стоп '%s' memory:%lu/%lu bytes ...%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 	osDelay(250);

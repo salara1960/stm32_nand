@@ -289,7 +289,7 @@ uint32_t              HAL_NAND_Read_Status(NAND_HandleTypeDef *hnand);
 #define NAND_DEVICE1               0x70000000UL
 #define NAND_DEVICE2               0x80000000UL
 #else
-#define NAND_DEVICE                0x80000000UL
+#define NAND_DEVICE                0x70000000UL//0x80000000UL
 #endif
 #define NAND_WRITE_TIMEOUT         0x01000000UL
 

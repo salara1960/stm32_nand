@@ -83,7 +83,7 @@ DSTATUS USER_initialize (
 {
   /* USER CODE BEGIN INIT */
     Stat = STA_NOINIT;
-//    Stat &= ~STA_NOINIT;
+    Stat &= ~STA_NOINIT;
 
     return Stat;
   /* USER CODE END INIT */
@@ -100,7 +100,7 @@ DSTATUS USER_status (
 {
   /* USER CODE BEGIN STATUS */
     Stat = STA_NOINIT;
-//    Stat &= ~STA_NOINIT;
+    Stat &= ~STA_NOINIT;
 
     return Stat;
   /* USER CODE END STATUS */
@@ -123,16 +123,15 @@ DRESULT USER_read (
 {
   /* USER CODE BEGIN READ */
 
-	/*
+	/**/
 	DRESULT ret = 0;
 	uint32_t ss = nand_getPageSize();
 	int i = -1;
 	while (++i < count) {
-		Report(1, "Dev:%u page:%u(%u) count:%u\r\n", pdrv, sector, ss, count);
-		//W25qxx_ReadSector((BYTE *)buff, sector++, 0, ss);
+		if (dbg > logOff) Report(1, "[%s] Dev:%u page:%u(%u) count:%u\r\n", __func__, pdrv, sector, ss, count);
 		ret |= nand_ReadPage(sector++, (BYTE *)buff);
 	}
-	*/
+	/**/
 
     return RES_OK;
   /* USER CODE END READ */
@@ -157,17 +156,16 @@ DRESULT USER_write (
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
 
-	/*
+	/**/
 	DRESULT ret = 0;
 	uint32_t ss = nand_getPageSize();
 	int i = -1;
 	while (++i < count) {
-		Report(1, "Dev:%u sector:%u(%u) count:%u\r\n", pdrv, sector, ss, count);
-//		if (!pageIsEmpty(sector)) nand_EraseBlock(nand_PageToBlock(sector));
-//		W25qxx_WriteSector((BYTE *)buff, sector++, 0, ss);
+		if (dbg > logOff) Report(1, "[%s] Dev:%u sector:%u(%u) count:%u\r\n", __func__, pdrv, sector, ss, count);
+		//if (!pageIsEmpty(sector)) nand_EraseBlock(nand_PageToBlock(sector));
 		ret |= nand_WritePage(sector++, (BYTE *)buff);
 	}
-	*/
+	/**/
 
     return RES_OK;
   /* USER CODE END WRITE */
@@ -190,7 +188,7 @@ DRESULT USER_ioctl (
 {
   /* USER CODE BEGIN IOCTL */
     DRESULT res = RES_ERROR;
-        /*
+        /**/
         switch (cmd) {
         	case CTRL_SYNC:
         		res = RES_OK;
@@ -210,7 +208,7 @@ DRESULT USER_ioctl (
             	default :
             		res = RES_PARERR;
         }
-        */
+        /**/
 
 
     return res;
