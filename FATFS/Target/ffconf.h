@@ -158,7 +158,7 @@
 /* Number of volumes (logical drives) to be used. */
 
 /* USER CODE BEGIN Volumes */
-#define _STR_VOLUME_ID          1	/* 0:Use only 0-9 for drive ID, 1:Use strings for drive ID */
+#define _STR_VOLUME_ID          0	/* 0:Use only 0-9 for drive ID, 1:Use strings for drive ID */
 #define _VOLUME_STRS            "RAM","NAND","CF","SD1","SD2","USB1","USB2","USB3"
 /* _STR_VOLUME_ID switches string support of volume ID.
 /  When _STR_VOLUME_ID is set to 1, also pre-defined strings can be used as drive

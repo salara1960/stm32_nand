@@ -124,7 +124,7 @@ DRESULT USER_read (
   /* USER CODE BEGIN READ */
 
 	/**/
-	DRESULT ret = 0;
+	DRESULT ret = RES_OK;
 	uint32_t ss = nand_getPageSize();
 	int i = -1;
 	while (++i < count) {
@@ -133,7 +133,7 @@ DRESULT USER_read (
 	}
 	/**/
 
-    return RES_OK;
+    return ret;
   /* USER CODE END READ */
 }
 
@@ -157,7 +157,7 @@ DRESULT USER_write (
   /* USER CODE HERE */
 
 	/**/
-	DRESULT ret = 0;
+	DRESULT ret = RES_OK;
 	uint32_t ss = nand_getPageSize();
 	int i = -1;
 	while (++i < count) {
@@ -167,7 +167,7 @@ DRESULT USER_write (
 	}
 	/**/
 
-    return RES_OK;
+    return ret;
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */

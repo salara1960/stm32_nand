@@ -97,7 +97,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.2.1 (26.05.2022)";
 //const char *version = "ver.1.2.2 (26.05.2022)";
 //const char *version = "ver.1.2.3 (27.05.2022)";
-const char *version = "ver.1.3 (30.05.2022)";
+//const char *version = "ver.1.3 (30.05.2022)";
+const char *version = "ver.1.3.1 (01.06.2022)";
 
 
 
@@ -141,7 +142,8 @@ bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 //1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
-static uint32_t epoch = 1653948390;//1653916490;//1653681746;//1653652854;//1653602199;//1653563627;
+//1653948390;//1653916490;//1653681746;//1653652854;//1653602199;//1653563627;
+static uint32_t epoch = 1654075033;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
 
@@ -327,7 +329,7 @@ int main(void)
 
   HAL_UART_Receive_IT(logPort, &rxByte, 1);
 
-  //set_Date(epoch);
+  set_Date(epoch);
 
   ST7789_Reset();
   ST7789_Init(back_color);
@@ -494,7 +496,7 @@ static void MX_RTC_Init(void)
   }
   /* USER CODE BEGIN RTC_Init 2 */
 
-  set_Date(epoch);
+  //set_Date(epoch);
 
   /* USER CODE END RTC_Init 2 */
 
@@ -1933,13 +1935,12 @@ void defThread(void *argument)
 
 #ifdef SET_FAT_FS
 
-
-	memcpy(USERPath, "NAND", 4);
+	//"RAM","NAND","CF","SD1","SD2","USB1","USB2","USB3"
+	strcpy(USERPath, "0:/");
 
 	mnt = drvMount(USERPath);
     if (mnt) {
       	  dir_open = dirList(dirName, &dir);
-      	  /**/
       	  if (dir_open) {
       		  sprintf(stx,"#Configuration file:%s"
       				  "PageSize:%lu%s"
@@ -1958,7 +1959,6 @@ void defThread(void *argument)
       		  wrFile(cfg, stx, false);
       		  rdFile(cfg);
       	  }
-      	  /**/
     }
 #endif
 
