@@ -213,7 +213,7 @@ void Error_Handler(void);
 #define NCE2_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
-extern uint8_t devError;
+extern uint16_t devError;
 extern UART_HandleTypeDef *uartPort;
 extern SPI_HandleTypeDef *ipsPort;
 extern DMA_HandleTypeDef hdma_spi1_tx;
