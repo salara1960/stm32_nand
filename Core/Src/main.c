@@ -1469,12 +1469,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					char *uki = NULL, *uke = NULL, *ukb = NULL;
 					switch (idx) {
 						case cmdHelp:
-							cmd_flag = 1;
-						break;
-						case cmdRestart:
-							cmd_flag = 1;
-						break;
 						case cmdInfo:
+						case cmdRestart:
 							cmd_flag = 1;
 						break;
 						case cmdEpoch:
