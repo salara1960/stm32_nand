@@ -96,7 +96,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.2.1 (26.05.2022)";
 //const char *version = "ver.1.2.2 (26.05.2022)";
 //const char *version = "ver.1.2.3 (27.05.2022)";
-const char *version = "ver.1.3.1 (01.06.2022)";
+//const char *version = "ver.1.3.1 (01.06.2022)";
+const char *version = "ver.1.3.3 (06.06.2022)";
 
 
 
@@ -113,6 +114,7 @@ const char *s_cmds[MAX_CMDS] = {
 		"area:",
 		"save:",
 		"log:",
+		"info",
 		"help"};
 uint16_t devError;
 uint8_t cmd_flag = 0;
@@ -127,6 +129,7 @@ const char *str_cmds[MAX_CMDS] = {
 	"Area",
 	"Save",
 	"Log",
+	"Info",
 	"Help"
 };
 
@@ -141,7 +144,8 @@ bool spiRdy = true;
 bool setDate = false;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 //1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
-static uint32_t epoch = 1654096285;//1653681746;//1653652854;//1653602199;//1653563627;
+//1654096285;//1653681746;//1653652854;//1653602199;//1653563627;
+static uint32_t epoch = 1654546759;//1654544747;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
 
@@ -154,6 +158,8 @@ const FontDef *fntKey = &Font_16x26;
 const FontDef *tFont = &Font_11x18;
 uint16_t back_color = BLACK;
 
+uint32_t total_pages = 0;
+uint32_t total_bytes = 0;
 uint32_t devAdr = 0;
 uint32_t nandAdr = 0;
 uint16_t nandLen = 0;
@@ -736,6 +742,9 @@ static void MX_FSMC_Init(void)
     	nandState = HAL_NAND_GetState(&hnand1);
 
     	memcpy((uint8_t *)&chipConf, (uint8_t *)&hnand1.Config, sizeof(s_chipConf));
+
+    	total_pages = (chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr;
+    	total_bytes = chipConf.BlockSize * chipConf.BlockNbr;
 
     	if ((chipConf.PageSize > 0) && (chipConf.PageSize <= MAX_NAND_BUF)) {
     		rdBuf = (uint8_t *)calloc(1, chipConf.PageSize);
@@ -1460,33 +1469,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					char *uki = NULL, *uke = NULL, *ukb = NULL;
 					switch (idx) {
 						case cmdHelp:
-							qcmd.cmd = cmdHelp;
 							cmd_flag = 1;
 						break;
 						case cmdRestart:
-							qcmd.cmd = cmdRestart;
+							cmd_flag = 1;
+						break;
+						case cmdInfo:
 							cmd_flag = 1;
 						break;
 						case cmdEpoch:
-							qcmd.cmd = cmdEpoch;
-							if (*uk == '?') {
+							if (strlen(uk) < 10) {
 								qcmd.attr = 1;
-								cmd_flag = 1;
 							} else {
-								if (strlen(uk) < 10) {
-									setDate = false;
+								uki = strchr(uk, ':');
+								if (uki) {
+									tZone = (uint8_t)atol(uki + 1);
+									*uki = '\0';
 								} else {
-									uki = strchr(uk, ':');
-									if (uki) {
-										tZone = (uint8_t)atol(uki + 1);
-										*uki = '\0';
-									} else {
-										tZone = 0;
-									}
-									epoch = (uint32_t)atol(uk);
-									cmd_flag = 1;
+									tZone = 0;
 								}
+								epoch = (uint32_t)atol(uk);
 							}
+							cmd_flag = 1;
 						break;
 						case cmdRead://"read:0x4549ABBB:256";
 							uki = strchr(uk, ':');
@@ -1503,13 +1507,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							}
 							nandAdr += devAdr;
 							check = true;
-							qcmd.cmd = cmdRead;
 						break;
 						case cmdNext://"next";
 							if (nandAdr < devAdr) nandAdr = devAdr;
 							nandAdr += nandLen;
 							check = true;
-							qcmd.cmd = cmdNext;
 						break;
 						case cmdWrite://"write:'0x0:0x55:256'" //adr:byte:len
 						case cmdArea://"area:'0x0:0x55:256'" //adr:byte:len
@@ -1545,7 +1547,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								    else nandByte = (uint8_t)atol(ukb);
 								nandAdr += devAdr;
 								check = true;
-								qcmd.cmd = idx;
 							}
 						}
 						break;
@@ -1556,15 +1557,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								uint32_t blk = atol(uk);
 								if (blk < chipConf.BlockNbr) nandBlk = blk;
 							}
-							qcmd.cmd = cmdErase;
 							cmd_flag = 1;
 						break;
 						case cmdCheck://"check:0" //check:page //(chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr
 						{
 							uint32_t page = atol(uk);
-							if (page < ((chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr)) {//(128K / 2K) * 1024 = 65536
+							if (page < total_pages) {//(128K / 2K) * 1024 = 65536
 								nandPage = page;
-								qcmd.cmd = cmdCheck;
 								cmd_flag = 1;
 							}
 						}
@@ -1579,15 +1578,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							} else if (strstr(uk, "dump")) {
 								lg = logDump;
 							}
-							qcmd.cmd = cmdLog;
 							qcmd.attr = lg;
 							cmd_flag = 1;
 						}
 						break;
 					}
+					qcmd.cmd = idx;
 					if (check) {
-						if ((nandAdr + nandLen) >= ((chipConf.BlockSize * chipConf.BlockNbr) + devAdr)) {
-							nandLen = (chipConf.BlockSize * chipConf.BlockNbr) - nandAdr - 1;
+						if ((nandAdr + nandLen) >= (total_bytes + devAdr)) {
+							nandLen = total_bytes - nandAdr - 1;
 						}
 						cmd_flag = 1;
 					}
@@ -1708,20 +1707,22 @@ void defThread(void *argument)
 	uint8_t nand_show = 0;
 	bool readed = false;
 	char cid[32];
+	uint32_t BlockSizeKB = chipConf.BlockSize / 1024;
+	uint32_t PlaneSizeMB = chipConf.PlaneSize / 1024 / 1024;
+	uint8_t *bid = (uint8_t *)&nandID.Maker_Id;
 	if (nandState == HAL_NAND_STATE_READY) {
 		if (nandID.Device_Id == chipIDcode) strncpy(cid, chipID, sizeof(cid));
 		                               else strcpy(cid, "UNKNOWN");
 		strcpy(stx, "NAND:");
-		uint8_t *bid = (uint8_t *)&nandID.Maker_Id;
 		for (int8_t i = 0; i < sizeof(NAND_IDsTypeDef); i++) sprintf(stx+strlen(stx), " %02X", *(bid + i));
 		sprintf(stx+strlen(stx), "\n\tDevice_Id=%02X '%s'\n", nandID.Device_Id, cid);
 		sprintf(stx+strlen(stx), "\tPageSize:%lu\n\tSpareAreaSize:%lu\n\tBlockSize:%lu KB\n\tBlockNbr:%lu\n\tPlaneNbr:%lu\n\tPlaneSize:%lu MB",
 					chipConf.PageSize,
 					chipConf.SpareAreaSize,
-					chipConf.BlockSize / 1024,
+					BlockSizeKB,
 					chipConf.BlockNbr,
 					chipConf.PlaneNbr,
-					chipConf.PlaneSize / 1024 / 1024);
+					PlaneSizeMB);
 	} else {
 			sprintf(stx, "NAND: Error nandStatus='%s'(%d)",
 					     nandAllState[nandState & (MAX_NAND_STATE - 1)], nandState);
@@ -1740,10 +1741,10 @@ void defThread(void *argument)
 			"PageSize:%lu\nSpareAreaSize:%lu\nBlockSize:%lu KB\nBlockNbr:%lu\nPlaneNbr:%lu\nPlaneSize:%lu MB",
 			chipConf.PageSize,
 			chipConf.SpareAreaSize,
-			chipConf.BlockSize / 1024,
+			BlockSizeKB,
 			chipConf.BlockNbr,
 			chipConf.PlaneNbr,
-			chipConf.PlaneSize / 1024 / 1024);
+			PlaneSizeMB);
 	if (cb_nandCounter) sprintf(screen+strlen(screen), "\nCallBack:%lu", cb_nandCounter);
 	ST7789_WriteString(0,
 					   tFont->height + (tFont->height * 0.85),
@@ -1824,6 +1825,22 @@ void defThread(void *argument)
 				case cmdRestart:
 					loop = false;
 		  		break;
+				case cmdInfo:
+					if (dbg != logOff) {
+						strcpy(stx, "NAND:");
+						//uint8_t *bid = (uint8_t *)&nandID.Maker_Id;
+						for (int8_t i = 0; i < sizeof(NAND_IDsTypeDef); i++) sprintf(stx+strlen(stx), " %02X", *(bid + i));
+						sprintf(stx+strlen(stx), "\n\tDevice_Id=%02X '%s'\n", nandID.Device_Id, cid);
+						sprintf(stx+strlen(stx), "\tPageSize:%lu\n\tSpareAreaSize:%lu\n\tBlockSize:%lu KB\n\tBlockNbr:%lu\n\tPlaneNbr:%lu\n\tPlaneSize:%lu MB",
+											chipConf.PageSize,
+											chipConf.SpareAreaSize,
+											BlockSizeKB,
+											chipConf.BlockNbr,
+											chipConf.PlaneNbr,
+											PlaneSizeMB);
+						Report(1, "%s%s", stx, eol);
+					}
+				break;
 				case cmdEpoch:
 					if (!qcmd.attr) {//set date&time
 						set_Date(epoch);
