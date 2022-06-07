@@ -72,8 +72,6 @@ enum {
 	cmdWrite,
 	cmdErase,
 	cmdCheck,
-	cmdArea,
-	cmdSave,
 	cmdLog,
 	cmdInfo,
 	cmdHelp
@@ -134,9 +132,10 @@ typedef struct {
 
 
 //#define SET_SWV
+//#define SET_SMALL_FS
 
 
-#define MAX_CMDS       12//11//9//8
+#define MAX_CMDS       10//11//9//8
 #define MAX_LEN_DATA  512//256
 #define MAX_SCR_BUF  1024
 
@@ -219,6 +218,14 @@ extern UART_HandleTypeDef *uartPort;
 extern SPI_HandleTypeDef *ipsPort;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 extern bool spiRdy;
+
+extern uint32_t io_nand_get_page_size(void);
+extern uint32_t io_nand_get_block_number(void);
+extern uint32_t io_nand_get_block_size(void);
+
+extern uint32_t io_nand_read(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offst);
+extern uint32_t io_nand_write(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offst);
+extern void io_nand_block_erase(uint32_t addr);
 
 /* USER CODE END Private defines */
 
