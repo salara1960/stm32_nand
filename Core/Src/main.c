@@ -29,7 +29,9 @@
 
 #include "st7789.h"
 
-#include "lfs.h"
+#ifdef SET_SMALL_FS
+	#include "io_fs.h"
+#endif
 
 /* USER CODE END Includes */
 
@@ -100,7 +102,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.2.3 (27.05.2022)";
 //const char *version = "ver.1.3.1 (01.06.2022)";
 //const char *version = "ver.1.3.3 (06.06.2022)";
-const char *version = "ver.1.4 (07.06.2022)";
+//const char *version = "ver.1.4 (07.06.2022)";
+const char *version = "ver.1.4.1 (08.06.2022)";
 
 
 
@@ -142,7 +145,7 @@ bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1654614048;//1654613449;
+static uint32_t epoch = 1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
 //1653476796;//1653430034;//1653428168;//1653309745;//1653149140;//1653082240;//1653055492;
@@ -183,6 +186,11 @@ uint8_t *wrBuf = NULL;//wrBuf = (uint8_t *)calloc(1, chipConf.PageSize);
 
 osStatus_t qStat;
 char stx[MAX_UART_BUF];
+
+#ifdef SET_SMALL_FS
+	io_fs_file file;
+	volatile int32_t fs_err;
+#endif
 
 
 /* USER CODE END PV */
@@ -1377,6 +1385,32 @@ char *buf = &txBuf[0];
 
 	return 0;
 }
+
+int _write(int file, char *buf, int len)
+{
+	Report(0, "%.*s", len, buf);
+	return len;
+}
+
+/*
+int stdin_getchar (void)
+{
+    return 0;
+}
+
+int stdout_putchar(int ch)
+{
+    Report(0, "%d", &ch);
+    return 0;
+}
+
+int stderr_putchar (int ch)
+{
+    //HAL_UART_Transmit(&huart3, (uint8_t*)&ch, 1, 1000);
+    Report(0, "%d", &ch);
+    return 0;
+}
+*/
 //------------------------------------------------------------------------------------------
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -1691,6 +1725,41 @@ void defThread(void *argument)
 					   back_color);
 	ipsOn(1);
 
+#ifdef SET_SMALL_FS
+	bool mnt = false;
+	fs_err = io_fs_init();
+
+	Report(1, "Mount device '%s' start%s", cid, eol);
+	fs_err = io_fs_mount();
+	if (fs_err) {
+		sprintf(stx, "Mount Error (%ld)", fs_err);
+	} else {
+		mnt = true;
+		sprintf(stx, "Mount device '%s' OK", cid);
+	}
+	Report(1, "%s%s", stx, eol);
+/*
+	if (fs_err) {
+		Report(1, "Format...%s", eol);
+		fs_err = io_fs_format();
+		if (fs_err) {
+			Report(1, "Format Error (%d)%s", fs_err, eol);
+		}
+	}
+
+	if (!fs_err) {
+		Report(1, "Mount device '%s' start%s", cid, eol);
+		fs_err = io_fs_mount();
+		if (fs_err) {
+			printf(stx, "Mount Error (%d)%s", fs_err);
+		} else {
+			mnt = true;
+			printf(stx, "Mount device '%s' OK%s", cid);
+		}
+		Report(1, "%s%s", stx, eol);
+	}
+*/
+#endif
 
 	bool loop = true;
 	bool led = false;
@@ -1899,6 +1968,9 @@ void defThread(void *argument)
 	if (wrBuf) free(wrBuf);
 	if (rdBuf) free(rdBuf);
 
+#ifdef SET_SMALL_FS
+	if (mnt) fs_err = io_fs_unmount();
+#endif
 
 	if (dbg != logOff) Report(1, "%s Стоп '%s' memory:%lu/%lu bytes ...%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
 	osDelay(250);

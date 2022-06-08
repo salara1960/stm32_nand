@@ -7,6 +7,11 @@
 #include "lfs.h"
 #include "lfs_util.h"
 
+
+//extern uint8_t Report(const uint8_t addTime, const char *fmt, ...);
+
+
+
 #define LFS_BLOCK_NULL ((lfs_block_t)-1)
 #define LFS_BLOCK_INLINE ((lfs_block_t)-2)
 
@@ -3489,23 +3494,44 @@ static int lfs_deinit(lfs_t *lfs) {
     return 0;
 }
 
+void cfg_prn(lfs_t *lfs, const struct lfs_config *cfg)
+{
+	LFS_TRACE("lfs_format(%p, %p\n{\n\t.context=%p, "
+	                "\n\t.read=%p, \n\t.prog=%p, \n\t.erase=%p, \n\t.sync=%p, "
+	                "\n\t.read_size=%"PRIu32", \n\t.prog_size=%"PRIu32", "
+	                "\n\t.block_size=%"PRIu32", \n\t.block_count=%"PRIu32", "
+	                "\n\t.block_cycles=%"PRIu32", \n\t.cache_size=%"PRIu32", "
+	                "\n\t.lookahead_size=%"PRIu32", \n\t.read_buffer=%p, "
+	                "\n\t.prog_buffer=%p, \n\t.lookahead_buffer=%p, "
+	                "\n\t.name_max=%"PRIu32", \n\t.file_max=%"PRIu32", "
+	                "\n\t.attr_max=%"PRIu32"\n})\n",
+	            (void*)lfs, (void*)cfg, cfg->context,
+	            (void*)(uintptr_t)cfg->read, (void*)(uintptr_t)cfg->prog,
+	            (void*)(uintptr_t)cfg->erase, (void*)(uintptr_t)cfg->sync,
+	            cfg->read_size, cfg->prog_size, cfg->block_size, cfg->block_count,
+	            cfg->block_cycles, cfg->cache_size, cfg->lookahead_size,
+	            cfg->read_buffer, cfg->prog_buffer, cfg->lookahead_buffer,
+	            cfg->name_max, cfg->file_max, cfg->attr_max);
+}
+
 int lfs_format(lfs_t *lfs, const struct lfs_config *cfg) {
-    LFS_TRACE("lfs_format(%p, %p {.context=%p, "
-                ".read=%p, .prog=%p, .erase=%p, .sync=%p, "
-                ".read_size=%"PRIu32", .prog_size=%"PRIu32", "
-                ".block_size=%"PRIu32", .block_count=%"PRIu32", "
-                ".block_cycles=%"PRIu32", .cache_size=%"PRIu32", "
-                ".lookahead_size=%"PRIu32", .read_buffer=%p, "
-                ".prog_buffer=%p, .lookahead_buffer=%p, "
-                ".name_max=%"PRIu32", .file_max=%"PRIu32", "
-                ".attr_max=%"PRIu32"})",
+	//cfg_prn(lfs, cfg);
+	/*LFS_TRACE("lfs_format(%p, %p\n{\n\t.context=%p, "
+                "\n\t.read=%p, \n\t.prog=%p, \n\t.erase=%p, \n\t.sync=%p, "
+                "\n\t.read_size=%"PRIu32", \n\t.prog_size=%"PRIu32", "
+                "\n\t.block_size=%"PRIu32", \n\t.block_count=%"PRIu32", "
+                "\n\t.block_cycles=%"PRIu32", \n\t.cache_size=%"PRIu32", "
+                "\n\t.lookahead_size=%"PRIu32", \n\t.read_buffer=%p, "
+                "\n\t.prog_buffer=%p, \n\t.lookahead_buffer=%p, "
+                "\n\t.name_max=%"PRIu32", \n\t.file_max=%"PRIu32", "
+                "\n\t.attr_max=%"PRIu32"\n})\n",
             (void*)lfs, (void*)cfg, cfg->context,
             (void*)(uintptr_t)cfg->read, (void*)(uintptr_t)cfg->prog,
             (void*)(uintptr_t)cfg->erase, (void*)(uintptr_t)cfg->sync,
             cfg->read_size, cfg->prog_size, cfg->block_size, cfg->block_count,
             cfg->block_cycles, cfg->cache_size, cfg->lookahead_size,
             cfg->read_buffer, cfg->prog_buffer, cfg->lookahead_buffer,
-            cfg->name_max, cfg->file_max, cfg->attr_max);
+            cfg->name_max, cfg->file_max, cfg->attr_max);*/
     int err = 0;
     {
         err = lfs_init(lfs, cfg);
@@ -3571,22 +3597,23 @@ cleanup:
 }
 
 int lfs_mount(lfs_t *lfs, const struct lfs_config *cfg) {
-    LFS_TRACE("lfs_mount(%p, %p {.context=%p, "
-                ".read=%p, .prog=%p, .erase=%p, .sync=%p, "
-                ".read_size=%"PRIu32", .prog_size=%"PRIu32", "
-                ".block_size=%"PRIu32", .block_count=%"PRIu32", "
-                ".block_cycles=%"PRIu32", .cache_size=%"PRIu32", "
-                ".lookahead_size=%"PRIu32", .read_buffer=%p, "
-                ".prog_buffer=%p, .lookahead_buffer=%p, "
-                ".name_max=%"PRIu32", .file_max=%"PRIu32", "
-                ".attr_max=%"PRIu32"})",
+	cfg_prn(lfs, cfg);
+    /*LFS_TRACE("lfs_mount(%p, %p \n{\n\t.context=%p, "
+                "\n\t.read=%p, \n\t.prog=%p, \n\t.erase=%p, \n\t.sync=%p, "
+                "\n\t.read_size=%"PRIu32", \n\t.prog_size=%"PRIu32", "
+                "\n\t.block_size=%"PRIu32", \n\t.block_count=%"PRIu32", "
+                "\n\t.block_cycles=%"PRIu32", \n\t.cache_size=%"PRIu32", "
+                "\n\t.lookahead_size=%"PRIu32", \n\t.read_buffer=%p, "
+                "\n\t.prog_buffer=%p, \n\t.lookahead_buffer=%p, "
+                "\n\t.name_max=%"PRIu32", \n\t.file_max=%"PRIu32", "
+                "\n\t.attr_max=%"PRIu32"\n})\n",
             (void*)lfs, (void*)cfg, cfg->context,
             (void*)(uintptr_t)cfg->read, (void*)(uintptr_t)cfg->prog,
             (void*)(uintptr_t)cfg->erase, (void*)(uintptr_t)cfg->sync,
             cfg->read_size, cfg->prog_size, cfg->block_size, cfg->block_count,
             cfg->block_cycles, cfg->cache_size, cfg->lookahead_size,
             cfg->read_buffer, cfg->prog_buffer, cfg->lookahead_buffer,
-            cfg->name_max, cfg->file_max, cfg->attr_max);
+            cfg->name_max, cfg->file_max, cfg->attr_max);*/
     int err = lfs_init(lfs, cfg);
     if (err) {
         LFS_TRACE("lfs_mount -> %d", err);

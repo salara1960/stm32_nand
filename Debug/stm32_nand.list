@@ -7,19 +7,19 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   1 .text         0000cc10  08000190  08000190  00010190  2**4
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .rodata       0000298c  0800cda0  0800cda0  0001cda0  2**2
+  2 .rodata       00002994  0800cda0  0800cda0  0001cda0  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  3 .ARM.extab    00000000  0800f72c  0800f72c  00020114  2**0
+  3 .ARM.extab    00000000  0800f734  0800f734  00020114  2**0
                   CONTENTS
-  4 .ARM          00000008  0800f72c  0800f72c  0001f72c  2**2
+  4 .ARM          00000008  0800f734  0800f734  0001f734  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  5 .preinit_array 00000000  0800f734  0800f734  00020114  2**0
+  5 .preinit_array 00000000  0800f73c  0800f73c  00020114  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  6 .init_array   00000004  0800f734  0800f734  0001f734  2**2
+  6 .init_array   00000004  0800f73c  0800f73c  0001f73c  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  7 .fini_array   00000004  0800f738  0800f738  0001f738  2**2
+  7 .fini_array   00000004  0800f740  0800f740  0001f740  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  8 .data         00000114  20000000  0800f73c  00020000  2**2
+  8 .data         00000114  20000000  0800f744  00020000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
   9 .ccmram       00000000  10000000  10000000  00020114  2**0
                   CONTENTS
@@ -29,23 +29,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  12 .ARM.attributes 00000030  00000000  00000000  00020114  2**0
                   CONTENTS, READONLY
- 13 .debug_info   00023df4  00000000  00000000  00020144  2**0
+ 13 .debug_info   00023e40  00000000  00000000  00020144  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 00004277  00000000  00000000  00043f38  2**0
+ 14 .debug_abbrev 00004277  00000000  00000000  00043f84  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 00001b88  00000000  00000000  000481b0  2**3
+ 15 .debug_aranges 00001b90  00000000  00000000  00048200  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  00005e0f  00000000  00000000  00049d38  2**0
+ 16 .debug_macro  00005dc6  00000000  00000000  00049d90  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00020327  00000000  00000000  0004fb47  2**0
+ 17 .debug_line   00020336  00000000  00000000  0004fb56  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000e413d  00000000  00000000  0006fe6e  2**0
+ 18 .debug_str    000e3ff2  00000000  00000000  0006fe8c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  00153fab  2**0
+ 19 .comment      00000050  00000000  00000000  00153e7e  2**0
                   CONTENTS, READONLY
- 20 .debug_ranges 00001a18  00000000  00000000  00154000  2**3
+ 20 .debug_ranges 00001a20  00000000  00000000  00153ed0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_frame  00007dc0  00000000  00000000  00155a18  2**2
+ 21 .debug_frame  00007de4  00000000  00000000  001558f0  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1208,11 +1208,11 @@ int main(void)
  8000d44:	20000068 	.word	0x20000068
  8000d48:	20001358 	.word	0x20001358
  8000d4c:	2000135e 	.word	0x2000135e
- 8000d50:	0800f520 	.word	0x0800f520
+ 8000d50:	0800f528 	.word	0x0800f528
  8000d54:	20000340 	.word	0x20000340
- 8000d58:	0800f508 	.word	0x0800f508
+ 8000d58:	0800f510 	.word	0x0800f510
  8000d5c:	2000033c 	.word	0x2000033c
- 8000d60:	0800f4e4 	.word	0x0800f4e4
+ 8000d60:	0800f4ec 	.word	0x0800f4ec
  8000d64:	080027c9 	.word	0x080027c9
  8000d68:	20000338 	.word	0x20000338
 
@@ -2800,7 +2800,7 @@ uint8_t *buff = pBuffer;
  80016f0:	20001368 	.word	0x20001368
  80016f4:	2000005a 	.word	0x2000005a
  80016f8:	20000004 	.word	0x20000004
- 80016fc:	0800f530 	.word	0x0800f530
+ 80016fc:	0800f538 	.word	0x0800f538
  8001700:	0800ced8 	.word	0x0800ced8
 
 08001704 <NAND_Write_Page_8b>:
@@ -3095,7 +3095,7 @@ HAL_StatusTypeDef  NAND_Write_Page_8b(NAND_HandleTypeDef *hnand,
  80018c8:	20001368 	.word	0x20001368
  80018cc:	2000005a 	.word	0x2000005a
  80018d0:	20000004 	.word	0x20000004
- 80018d4:	0800f544 	.word	0x0800f544
+ 80018d4:	0800f54c 	.word	0x0800f54c
  80018d8:	0800ced8 	.word	0x0800ced8
 
 080018dc <NAND_Erase_Block>:
@@ -3274,7 +3274,7 @@ HAL_StatusTypeDef NAND_Erase_Block(NAND_HandleTypeDef *hnand, NAND_AddressTypeDe
  80019e0:	20001368 	.word	0x20001368
  80019e4:	2000005a 	.word	0x2000005a
  80019e8:	20000004 	.word	0x20000004
- 80019ec:	0800f558 	.word	0x0800f558
+ 80019ec:	0800f560 	.word	0x0800f560
  80019f0:	0800ced8 	.word	0x0800ced8
 
 080019f4 <pageIsEmpty>:
@@ -4247,6 +4247,9 @@ char *buf = &txBuf[0];
  80020b0:	20000344 	.word	0x20000344
 
 080020b4 <HAL_UART_RxCpltCallback>:
+    return 0;
+}
+*/
 //------------------------------------------------------------------------------------------
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -4642,7 +4645,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  8002398:	20001370 	.word	0x20001370
  800239c:	2000135d 	.word	0x2000135d
  80023a0:	2000005c 	.word	0x2000005c
- 80023a4:	0800cfe4 	.word	0x0800cfe4
+ 80023a4:	0800cfec 	.word	0x0800cfec
  80023a8:	2000136c 	.word	0x2000136c
  80023ac:	20001368 	.word	0x20001368
 								    else nandAdr = atol(tmp);
@@ -4942,18 +4945,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  80025a2:	bf00      	nop
  80025a4:	2000136c 	.word	0x2000136c
  80025a8:	20001370 	.word	0x20001370
- 80025ac:	0800cfe4 	.word	0x0800cfe4
+ 80025ac:	0800cfec 	.word	0x0800cfec
  80025b0:	20000078 	.word	0x20000078
  80025b4:	20001368 	.word	0x20001368
- 80025b8:	0800cfe8 	.word	0x0800cfe8
+ 80025b8:	0800cff0 	.word	0x0800cff0
  80025bc:	20001388 	.word	0x20001388
  80025c0:	20001374 	.word	0x20001374
  80025c4:	20000346 	.word	0x20000346
  80025c8:	20001360 	.word	0x20001360
  80025cc:	20001378 	.word	0x20001378
- 80025d0:	0800cfec 	.word	0x0800cfec
- 80025d4:	0800cff0 	.word	0x0800cff0
- 80025d8:	0800cff4 	.word	0x0800cff4
+ 80025d0:	0800cff4 	.word	0x0800cff4
+ 80025d4:	0800cff8 	.word	0x0800cff8
+ 80025d8:	0800cffc 	.word	0x0800cffc
  80025dc:	20001364 	.word	0x20001364
  80025e0:	2000033c 	.word	0x2000033c
  80025e4:	200013a8 	.word	0x200013a8
@@ -5222,12 +5225,12 @@ uint32_t max_ind = len;
  80027a2:	bd80      	pop	{r7, pc}
  80027a4:	20001388 	.word	0x20001388
  80027a8:	200013ac 	.word	0x200013ac
- 80027ac:	0800cffc 	.word	0x0800cffc
- 80027b0:	0800d004 	.word	0x0800d004
+ 80027ac:	0800d004 	.word	0x0800d004
+ 80027b0:	0800d00c 	.word	0x0800d00c
  80027b4:	20000004 	.word	0x20000004
  80027b8:	2000005a 	.word	0x2000005a
- 80027bc:	0800d00c 	.word	0x0800d00c
- 80027c0:	0800d010 	.word	0x0800d010
+ 80027bc:	0800d014 	.word	0x0800d014
+ 80027c0:	0800d018 	.word	0x0800d018
  80027c4:	00000000 	.word	0x00000000
 
 080027c8 <defThread>:
@@ -5410,20 +5413,20 @@ void defThread(void *argument)
  800292e:	bf00      	nop
  8002930:	2000005a 	.word	0x2000005a
  8002934:	20000004 	.word	0x20000004
- 8002938:	0800d00c 	.word	0x0800d00c
+ 8002938:	0800d014 	.word	0x0800d014
  800293c:	20000000 	.word	0x20000000
- 8002940:	0800f56c 	.word	0x0800f56c
- 8002944:	0800d038 	.word	0x0800d038
+ 8002940:	0800f574 	.word	0x0800f574
+ 8002944:	0800d040 	.word	0x0800d040
  8002948:	20001388 	.word	0x20001388
  800294c:	20001380 	.word	0x20001380
  8002950:	20000079 	.word	0x20000079
  8002954:	2000007c 	.word	0x2000007c
- 8002958:	0800d064 	.word	0x0800d064
+ 8002958:	0800d06c 	.word	0x0800d06c
  800295c:	200013ac 	.word	0x200013ac
- 8002960:	0800d06c 	.word	0x0800d06c
- 8002964:	0800d004 	.word	0x0800d004
- 8002968:	0800d074 	.word	0x0800d074
- 800296c:	0800d08c 	.word	0x0800d08c
+ 8002960:	0800d074 	.word	0x0800d074
+ 8002964:	0800d00c 	.word	0x0800d00c
+ 8002968:	0800d07c 	.word	0x0800d07c
+ 800296c:	0800d094 	.word	0x0800d094
 					chipConf.BlockNbr,
 					chipConf.PlaneNbr,
 					PlaneSizeMB);
@@ -5603,7 +5606,10 @@ void defThread(void *argument)
 	ipsOn(1);
  8002ad4:	2001      	movs	r0, #1
  8002ad6:	f000 febd 	bl	8003854 <ipsOn>
-
+		Report(1, "%s%s", stx, eol);
+	}
+*/
+#endif
 
 	bool loop = true;
  8002ada:	2301      	movs	r3, #1
@@ -5781,23 +5787,23 @@ void defThread(void *argument)
  8002c3c:	3feb3333 	.word	0x3feb3333
  8002c40:	20000079 	.word	0x20000079
  8002c44:	20000080 	.word	0x20000080
- 8002c48:	0800d0f0 	.word	0x0800d0f0
+ 8002c48:	0800d0f8 	.word	0x0800d0f8
  8002c4c:	200013ac 	.word	0x200013ac
  8002c50:	2000005a 	.word	0x2000005a
  8002c54:	20000004 	.word	0x20000004
- 8002c58:	0800d110 	.word	0x0800d110
+ 8002c58:	0800d118 	.word	0x0800d118
  8002c5c:	20000070 	.word	0x20000070
- 8002c60:	0800d118 	.word	0x0800d118
+ 8002c60:	0800d120 	.word	0x0800d120
  8002c64:	20000074 	.word	0x20000074
  8002c68:	20001388 	.word	0x20001388
- 8002c6c:	0800d124 	.word	0x0800d124
+ 8002c6c:	0800d12c 	.word	0x0800d12c
  8002c70:	2000137c 	.word	0x2000137c
- 8002c74:	0800d180 	.word	0x0800d180
+ 8002c74:	0800d188 	.word	0x0800d188
  8002c78:	2000135e 	.word	0x2000135e
  8002c7c:	20000344 	.word	0x20000344
- 8002c80:	0800d190 	.word	0x0800d190
+ 8002c80:	0800d198 	.word	0x0800d198
  8002c84:	200013a8 	.word	0x200013a8
- 8002c88:	0800d1a0 	.word	0x0800d1a0
+ 8002c88:	0800d1a8 	.word	0x0800d1a8
  8002c8c:	2300      	movs	r3, #0
  8002c8e:	f887 3474 	strb.w	r3, [r7, #1140]	; 0x474
 			errLedOn(led);
@@ -6134,25 +6140,25 @@ void defThread(void *argument)
  8002f5c:	20000344 	.word	0x20000344
  8002f60:	2000005a 	.word	0x2000005a
  8002f64:	20000004 	.word	0x20000004
- 8002f68:	0800d1a0 	.word	0x0800d1a0
+ 8002f68:	0800d1a8 	.word	0x0800d1a8
  8002f6c:	20000030 	.word	0x20000030
- 8002f70:	0800d1ac 	.word	0x0800d1ac
+ 8002f70:	0800d1b4 	.word	0x0800d1b4
  8002f74:	20000070 	.word	0x20000070
- 8002f78:	0800d1b4 	.word	0x0800d1b4
- 8002f7c:	0800d1cc 	.word	0x0800d1cc
+ 8002f78:	0800d1bc 	.word	0x0800d1bc
+ 8002f7c:	0800d1d4 	.word	0x0800d1d4
  8002f80:	200013ac 	.word	0x200013ac
  8002f84:	20000008 	.word	0x20000008
- 8002f88:	0800d1e8 	.word	0x0800d1e8
- 8002f8c:	0800d00c 	.word	0x0800d00c
- 8002f90:	0800d06c 	.word	0x0800d06c
- 8002f94:	0800d004 	.word	0x0800d004
+ 8002f88:	0800d1f0 	.word	0x0800d1f0
+ 8002f8c:	0800d014 	.word	0x0800d014
+ 8002f90:	0800d074 	.word	0x0800d074
+ 8002f94:	0800d00c 	.word	0x0800d00c
  8002f98:	20001380 	.word	0x20001380
- 8002f9c:	0800d074 	.word	0x0800d074
+ 8002f9c:	0800d07c 	.word	0x0800d07c
  8002fa0:	20001388 	.word	0x20001388
- 8002fa4:	0800d08c 	.word	0x0800d08c
- 8002fa8:	0800d110 	.word	0x0800d110
+ 8002fa4:	0800d094 	.word	0x0800d094
+ 8002fa8:	0800d118 	.word	0x0800d118
  8002fac:	2000005c 	.word	0x2000005c
- 8002fb0:	0800d1f0 	.word	0x0800d1f0
+ 8002fb0:	0800d1f8 	.word	0x0800d1f8
 				case cmdLog:
 					if (qcmd.attr < logNone) {
  8002fb4:	f507 6391 	add.w	r3, r7, #1160	; 0x488
@@ -6492,25 +6498,25 @@ void defThread(void *argument)
  800324c:	e0f2      	b.n	8003434 <defThread+0xc6c>
  800324e:	bf00      	nop
  8003250:	20000004 	.word	0x20000004
- 8003254:	0800d20c 	.word	0x0800d20c
+ 8003254:	0800d214 	.word	0x0800d214
  8003258:	2000005a 	.word	0x2000005a
- 800325c:	0800d228 	.word	0x0800d228
+ 800325c:	0800d230 	.word	0x0800d230
  8003260:	2000136c 	.word	0x2000136c
  8003264:	20001368 	.word	0x20001368
  8003268:	20001388 	.word	0x20001388
  800326c:	20001370 	.word	0x20001370
- 8003270:	0800d248 	.word	0x0800d248
+ 8003270:	0800d250 	.word	0x0800d250
  8003274:	200013a0 	.word	0x200013a0
  8003278:	2000006c 	.word	0x2000006c
  800327c:	20000344 	.word	0x20000344
- 8003280:	0800d278 	.word	0x0800d278
+ 8003280:	0800d280 	.word	0x0800d280
  8003284:	20001374 	.word	0x20001374
- 8003288:	0800d29c 	.word	0x0800d29c
- 800328c:	0800d2bc 	.word	0x0800d2bc
- 8003290:	0800d2d8 	.word	0x0800d2d8
+ 8003288:	0800d2a4 	.word	0x0800d2a4
+ 800328c:	0800d2c4 	.word	0x0800d2c4
+ 8003290:	0800d2e0 	.word	0x0800d2e0
  8003294:	20001378 	.word	0x20001378
- 8003298:	0800d2e4 	.word	0x0800d2e4
- 800329c:	0800d308 	.word	0x0800d308
+ 8003298:	0800d2ec 	.word	0x0800d2ec
+ 800329c:	0800d310 	.word	0x0800d310
 				case cmdWrite:
 					if (wrBuf) {
  80032a0:	4b81      	ldr	r3, [pc, #516]	; (80034a8 <defThread+0xce0>)
@@ -6771,15 +6777,15 @@ void defThread(void *argument)
  80034b4:	20001388 	.word	0x20001388
  80034b8:	2000006c 	.word	0x2000006c
  80034bc:	20000344 	.word	0x20000344
- 80034c0:	0800d32c 	.word	0x0800d32c
+ 80034c0:	0800d334 	.word	0x0800d334
  80034c4:	200013ac 	.word	0x200013ac
- 80034c8:	0800d348 	.word	0x0800d348
+ 80034c8:	0800d350 	.word	0x0800d350
  80034cc:	2000005a 	.word	0x2000005a
  80034d0:	20000004 	.word	0x20000004
- 80034d4:	0800d110 	.word	0x0800d110
+ 80034d4:	0800d118 	.word	0x0800d118
  80034d8:	20000078 	.word	0x20000078
  80034dc:	20001370 	.word	0x20001370
- 80034e0:	0800d35c 	.word	0x0800d35c
+ 80034e0:	0800d364 	.word	0x0800d364
  80034e4:	200013a0 	.word	0x200013a0
 			} else {
 				if (!(iBlk % 16)) Report(0, ".");
@@ -6854,6 +6860,9 @@ void defThread(void *argument)
  8003574:	4618      	mov	r0, r3
  8003576:	f008 fdf9 	bl	800c16c <free>
 
+#ifdef SET_SMALL_FS
+	if (mnt) fs_err = io_fs_unmount();
+#endif
 
 	if (dbg != logOff) Report(1, "%s Стоп '%s' memory:%lu/%lu bytes ...%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
  800357a:	4b0f      	ldr	r3, [pc, #60]	; (80035b8 <defThread+0xdf0>)
@@ -6881,17 +6890,17 @@ void defThread(void *argument)
 
 	NVIC_SystemReset();
  80035ac:	f7fd fb40 	bl	8000c30 <__NVIC_SystemReset>
- 80035b0:	0800d3a4 	.word	0x0800d3a4
+ 80035b0:	0800d3ac 	.word	0x0800d3ac
  80035b4:	20001388 	.word	0x20001388
  80035b8:	2000005a 	.word	0x2000005a
  80035bc:	10624dd3 	.word	0x10624dd3
  80035c0:	20000004 	.word	0x20000004
- 80035c4:	0800d3a8 	.word	0x0800d3a8
+ 80035c4:	0800d3b0 	.word	0x0800d3b0
  80035c8:	200013a4 	.word	0x200013a4
  80035cc:	200013a0 	.word	0x200013a0
  80035d0:	20000000 	.word	0x20000000
- 80035d4:	0800f56c 	.word	0x0800f56c
- 80035d8:	0800d3c0 	.word	0x0800d3c0
+ 80035d4:	0800f574 	.word	0x0800f574
+ 80035d8:	0800d3c8 	.word	0x0800d3c8
 
 080035dc <HAL_TIM_PeriodElapsedCallback>:
   * a global variable "uwTick" used as application time base.
@@ -7638,9 +7647,9 @@ void ST7789_Init(uint16_t bkColor)
  8003aaa:	46bd      	mov	sp, r7
  8003aac:	bd90      	pop	{r4, r7, pc}
  8003aae:	bf00      	nop
- 8003ab0:	0800d3ec 	.word	0x0800d3ec
- 8003ab4:	0800d3f4 	.word	0x0800d3f4
- 8003ab8:	0800d404 	.word	0x0800d404
+ 8003ab0:	0800d3f4 	.word	0x0800d3f4
+ 8003ab4:	0800d3fc 	.word	0x0800d3fc
+ 8003ab8:	0800d40c 	.word	0x0800d40c
  8003abc:	28131121 	.word	0x28131121
 
 08003ac0 <ST7789_Fill_Color>:
@@ -9443,7 +9452,7 @@ LoopFillZerobss:
   ldr   sp, =_estack     /* set stack pointer */
  8004470:	20020000 	.word	0x20020000
   ldr  r3, =_sidata
- 8004474:	0800f73c 	.word	0x0800f73c
+ 8004474:	0800f744 	.word	0x0800f744
   ldr  r0, =_sdata
  8004478:	20000000 	.word	0x20000000
   ldr  r3, =_edata
@@ -11260,7 +11269,7 @@ static uint32_t DMA_CalcBaseAndBitshift(DMA_HandleTypeDef *hdma)
  8004e1c:	4770      	bx	lr
  8004e1e:	bf00      	nop
  8004e20:	aaaaaaab 	.word	0xaaaaaaab
- 8004e24:	0800f590 	.word	0x0800f590
+ 8004e24:	0800f598 	.word	0x0800f598
 
 08004e28 <DMA_CheckFifoParam>:
   * @param  hdma       pointer to a DMA_HandleTypeDef structure that contains
@@ -13836,7 +13845,7 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(RCC_ClkInitTypeDef  *RCC_ClkInitStruct, ui
  8005c76:	bf00      	nop
  8005c78:	40023c00 	.word	0x40023c00
  8005c7c:	40023800 	.word	0x40023800
- 8005c80:	0800f578 	.word	0x0800f578
+ 8005c80:	0800f580 	.word	0x0800f580
  8005c84:	20000090 	.word	0x20000090
  8005c88:	20000094 	.word	0x20000094
 
@@ -14138,7 +14147,7 @@ uint32_t HAL_RCC_GetPCLK1Freq(void)
  8005ecc:	4618      	mov	r0, r3
  8005ece:	bd80      	pop	{r7, pc}
  8005ed0:	40023800 	.word	0x40023800
- 8005ed4:	0800f588 	.word	0x0800f588
+ 8005ed4:	0800f590 	.word	0x0800f590
 
 08005ed8 <HAL_RCC_GetPCLK2Freq>:
   * @note   Each time PCLK2 changes, this function must be called to update the
@@ -14164,7 +14173,7 @@ uint32_t HAL_RCC_GetPCLK2Freq(void)
  8005ef4:	4618      	mov	r0, r3
  8005ef6:	bd80      	pop	{r7, pc}
  8005ef8:	40023800 	.word	0x40023800
- 8005efc:	0800f588 	.word	0x0800f588
+ 8005efc:	0800f590 	.word	0x0800f590
 
 08005f00 <HAL_RCC_GetClockConfig>:
   * will be configured.
@@ -26553,9 +26562,9 @@ BaseType_t xReturn;
  800a42e:	3720      	adds	r7, #32
  800a430:	46bd      	mov	sp, r7
  800a432:	bd80      	pop	{r7, pc}
- 800a434:	0800f5b8 	.word	0x0800f5b8
- 800a438:	0800f5d8 	.word	0x0800f5d8
- 800a43c:	0800f598 	.word	0x0800f598
+ 800a434:	0800f5c0 	.word	0x0800f5c0
+ 800a438:	0800f5e0 	.word	0x0800f5e0
+ 800a43c:	0800f5a0 	.word	0x0800f5a0
 
 0800a440 <prvAddNewTaskToReadyList>:
 /*-----------------------------------------------------------*/
@@ -26958,7 +26967,7 @@ BaseType_t xReturn;
  800a642:	46bd      	mov	sp, r7
  800a644:	bd80      	pop	{r7, pc}
  800a646:	bf00      	nop
- 800a648:	0800d414 	.word	0x0800d414
+ 800a648:	0800d41c 	.word	0x0800d41c
  800a64c:	0800ac8d 	.word	0x0800ac8d
  800a650:	200068b4 	.word	0x200068b4
  800a654:	200063bc 	.word	0x200063bc
@@ -28859,7 +28868,7 @@ BaseType_t xReturn = pdFAIL;
  800b07c:	46bd      	mov	sp, r7
  800b07e:	bd80      	pop	{r7, pc}
  800b080:	200068ec 	.word	0x200068ec
- 800b084:	0800d41c 	.word	0x0800d41c
+ 800b084:	0800d424 	.word	0x0800d424
  800b088:	0800b1c5 	.word	0x0800b1c5
  800b08c:	200068f0 	.word	0x200068f0
 
@@ -29959,7 +29968,7 @@ static void prvCheckForValidListAndQueue( void )
  800b68c:	200068e8 	.word	0x200068e8
  800b690:	20006998 	.word	0x20006998
  800b694:	200068f8 	.word	0x200068f8
- 800b698:	0800d424 	.word	0x0800d424
+ 800b698:	0800d42c 	.word	0x0800d42c
 
 0800b69c <pxPortInitialiseStack>:
 
@@ -31759,10 +31768,10 @@ const HeapRegion_t *pxHeapRegion;
  800c152:	4798      	blx	r3
  800c154:	3601      	adds	r6, #1
  800c156:	e7f2      	b.n	800c13e <__libc_init_array+0x1e>
- 800c158:	0800f734 	.word	0x0800f734
- 800c15c:	0800f734 	.word	0x0800f734
- 800c160:	0800f734 	.word	0x0800f734
- 800c164:	0800f738 	.word	0x0800f738
+ 800c158:	0800f73c 	.word	0x0800f73c
+ 800c15c:	0800f73c 	.word	0x0800f73c
+ 800c160:	0800f73c 	.word	0x0800f73c
+ 800c164:	0800f740 	.word	0x0800f740
 
 0800c168 <__retarget_lock_acquire_recursive>:
  800c168:	4770      	bx	lr
@@ -32359,8 +32368,8 @@ const HeapRegion_t *pxHeapRegion;
  800c6ac:	f104 0619 	add.w	r6, r4, #25
  800c6b0:	e7f5      	b.n	800c69e <_printf_i+0x22e>
  800c6b2:	bf00      	nop
- 800c6b4:	0800f5f8 	.word	0x0800f5f8
- 800c6b8:	0800f609 	.word	0x0800f609
+ 800c6b4:	0800f600 	.word	0x0800f600
+ 800c6b8:	0800f611 	.word	0x0800f611
 
 0800c6bc <cleanup_glue>:
  800c6bc:	b538      	push	{r3, r4, r5, lr}
@@ -32680,7 +32689,7 @@ const HeapRegion_t *pxHeapRegion;
  800c986:	230a      	movs	r3, #10
  800c988:	e7ab      	b.n	800c8e2 <_strtol_l.constprop.0+0x56>
  800c98a:	bf00      	nop
- 800c98c:	0800f61b 	.word	0x0800f61b
+ 800c98c:	0800f623 	.word	0x0800f623
 
 0800c990 <strtol>:
  800c990:	4613      	mov	r3, r2
@@ -33096,11 +33105,11 @@ const HeapRegion_t *pxHeapRegion;
  800cd5c:	f7ff fb88 	bl	800c470 <_printf_i>
  800cd60:	e7eb      	b.n	800cd3a <_svfiprintf_r+0x1c2>
  800cd62:	bf00      	nop
- 800cd64:	0800f71b 	.word	0x0800f71b
- 800cd68:	0800f725 	.word	0x0800f725
+ 800cd64:	0800f723 	.word	0x0800f723
+ 800cd68:	0800f72d 	.word	0x0800f72d
  800cd6c:	00000000 	.word	0x00000000
  800cd70:	0800cac3 	.word	0x0800cac3
- 800cd74:	0800f721 	.word	0x0800f721
+ 800cd74:	0800f729 	.word	0x0800f729
 
 0800cd78 <_malloc_usable_size_r>:
  800cd78:	f851 3c04 	ldr.w	r3, [r1, #-4]
