@@ -1077,22 +1077,14 @@ HAL_StatusTypeDef NAND_Erase_Block(NAND_HandleTypeDef *hnand, NAND_AddressTypeDe
 bool pageIsEmpty(uint32_t page)
 {
 bool ret = false;
-/*
-	NAND_AddressTypeDef addr = {
-		.Page = page,//(page % (chipConf.BlockSize / chipConf.PageSize)),//page,
-		.Plane = 1,
-		.Block = nand_PageToBlock(page)
-	};
-*/
 
-	//if (NAND_Read_Page_8b(nandPort, &addr, rdBuf, chipConf.PageSize, 0) != HAL_OK) {
 	io_nand_read(page, rdBuf, chipConf.PageSize, 0)	;
-	//	devError |= devNAND;
 	if (!(devError & devNAND)) {
 		ret = true;
 		for (uint32_t i = 0; i < chipConf.PageSize; i++) {
 			if (*(uint8_t *)(rdBuf + i) != EMPTY) {
 				ret = false;
+				break;
 			}
 		}
 	}
@@ -1134,6 +1126,53 @@ HAL_StatusTypeDef nand_EraseBlock(uint32_t block)
 	return NAND_Erase_Block(nandPort, &nans, 0);
 }
 */
+#ifdef SET_SMALL_FS
+int _write(int file, char *buf, int len)
+{
+	Report(0, "%.*s", len, buf);
+	return len;
+}
+#endif
+//
+#ifdef SET_FS_TEST
+static char *str_fsErr(int e)
+{
+	switch (e) {
+		case LFS_ERR_OK://          = 0,    // No error
+			return "OK";
+		case LFS_ERR_IO://          = -5,   // Error during device operation
+			return "ERR_IO";
+		case LFS_ERR_CORRUPT://     = -84,  // Corrupted
+			return "ERR_CORRUPT";
+		case LFS_ERR_NOENT://       = -2,   // No directory entry
+			return "ERR_NOENT";
+		case LFS_ERR_EXIST://       = -17,  // Entry already exists
+			return "ERR_EXIST";
+		case LFS_ERR_NOTDIR://      = -20,  // Entry is not a dir
+			return "ERR_NOTDIR";
+		case LFS_ERR_ISDIR://       = -21,  // Entry is a dir
+			return "ERR_ISDIR";
+		case LFS_ERR_NOTEMPTY://    = -39,  // Dir is not empty
+			return "ERR_NOTEMPTY";
+		case LFS_ERR_BADF://        = -9,   // Bad file number
+			return "ERR_BADF";
+		case LFS_ERR_FBIG://        = -27,  // File too large
+			return "ERR_FBIG";
+		case LFS_ERR_INVAL://       = -22,  // Invalid parameter
+			return "ERR_INVAL";
+		case LFS_ERR_NOSPC://       = -28,  // No space left on device
+			return "ERR_NOSPC";
+		case LFS_ERR_NOMEM://       = -12,  // No more memory available
+			return "ERR_NOMEM";
+		case LFS_ERR_NOATTR://      = -61,  // No data/attr available
+			return "ERR_NOATTR";
+		case LFS_ERR_NAMETOOLONG:// = -36,  // File name too long
+			return "ERR_NAMETOOLONG";
+	}
+
+	return "UNKNOWN";
+}
+#endif
 //-----------------------------------------------------------------------------
 uint32_t io_flash_adr_to_uint32(NAND_AddressTypeDef *adr)
 {
@@ -1360,52 +1399,12 @@ uint32_t io_nand_write(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t o
 //-----------------------------------------------------------------------------
 void io_nand_block_erase(uint32_t addr)
 {
-NAND_AddressTypeDef a = io_uint32_to_flash_adr(addr);
+NAND_AddressTypeDef nans = io_uint32_to_flash_adr(addr);
 
-	if (io_nand_erase_block(&a) != HAL_OK) devError |= devNAND;
+	if (io_nand_erase_block(&nans) != HAL_OK) devError |= devNAND;
 }
 //-----------------------------------------------------------------------------
-/*
-uint32_t io_nand_read(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offset)
-{
-	uint32_t page = addr / chipConf.PageSize;
-	NAND_AddressTypeDef nans = {
-		.Page = page,
-		.Plane = 1,
-		.Block = nand_PageToBlock(page)
-	};
-	if (NAND_Read_Page_8b(nandPort, &nans, buffer, size, offset) != HAL_OK) devError |= devNAND;
-
-    return 0;
-}
 //-----------------------------------------------------------------------------
-uint32_t io_nand_write(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offset)
-{
-    //io_nand_write_8b(nandPort, addr, buffer, size, offst);
-	uint32_t page = addr / chipConf.PageSize;
-	NAND_AddressTypeDef nans = {
-		.Page = page,
-		.Plane = 1,
-		.Block = nand_PageToBlock(page)
-	};
-	if (NAND_Write_Page_8b(nandPort, &nans, buffer, size, offset) != HAL_OK) devError |= devNAND;
-
-    return 0;
-}
-//-----------------------------------------------------------------------------
-void io_nand_block_erase(uint32_t addr)
-{
-    //io_nand_block_erase(nandPort, addr);
-	uint32_t block = addr / chipConf.BlockSize;
-	NAND_AddressTypeDef nans = {
-		.Page = nand_BlockToPage(block),
-		.Plane = 1,
-		.Block = block
-	};
-	if (NAND_Erase_Block(nandPort, &nans, 0) != HAL_OK) devError |= devNAND;
-
-}
-*/
 //-----------------------------------------------------------------------------
 static const char *get_qStat(osStatus_t osStat)
 {
@@ -1632,69 +1631,8 @@ char *buf = &txBuf[0];
 }
 //-------------------------------------------------------------------------------------------
 #ifdef SET_SMALL_FS
-int _write(int file, char *buf, int len)
-{
-	Report(0, "%.*s", len, buf);
-	return len;
-}
-//
-static char *str_fsErr(int e)
-{
-	switch (e) {
-		case LFS_ERR_OK://          = 0,    // No error
-			return "OK";
-		case LFS_ERR_IO://          = -5,   // Error during device operation
-			return "ERR_IO";
-		case LFS_ERR_CORRUPT://     = -84,  // Corrupted
-			return "ERR_CORRUPT";
-		case LFS_ERR_NOENT://       = -2,   // No directory entry
-			return "ERR_NOENT";
-		case LFS_ERR_EXIST://       = -17,  // Entry already exists
-			return "ERR_EXIST";
-		case LFS_ERR_NOTDIR://      = -20,  // Entry is not a dir
-			return "ERR_NOTDIR";
-		case LFS_ERR_ISDIR://       = -21,  // Entry is a dir
-			return "ERR_ISDIR";
-		case LFS_ERR_NOTEMPTY://    = -39,  // Dir is not empty
-			return "ERR_NOTEMPTY";
-		case LFS_ERR_BADF://        = -9,   // Bad file number
-			return "ERR_BADF";
-		case LFS_ERR_FBIG://        = -27,  // File too large
-			return "ERR_FBIG";
-		case LFS_ERR_INVAL://       = -22,  // Invalid parameter
-			return "ERR_INVAL";
-		case LFS_ERR_NOSPC://       = -28,  // No space left on device
-			return "ERR_NOSPC";
-		case LFS_ERR_NOMEM://       = -12,  // No more memory available
-			return "ERR_NOMEM";
-		case LFS_ERR_NOATTR://      = -61,  // No data/attr available
-			return "ERR_NOATTR";
-		case LFS_ERR_NAMETOOLONG:// = -36,  // File name too long
-			return "ERR_NAMETOOLONG";
-	}
 
-	return "UNKNOWN";
-}
 
-/*
-int stdin_getchar (void)
-{
-    return 0;
-}
-
-int stdout_putchar(int ch)
-{
-    Report(0, "%d", &ch);
-    return 0;
-}
-
-int stderr_putchar (int ch)
-{
-    //HAL_UART_Transmit(&huart3, (uint8_t*)&ch, 1, 1000);
-    Report(0, "%d", &ch);
-    return 0;
-}
-*/
 #endif
 //------------------------------------------------------------------------------------------
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -1716,11 +1654,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 														  //"epoch:"
 														  //"read:0x4549ABBB:256"
 						                                  //"next"
-														  //"write:0x0:0xf0:256"
+														  //"write:0x0:0x0:0xf0:256"//adr:[offset:]byte:len
 														  //"erase:"
 														  //"check:"
-														  //"area:"
-														  //"save:"
+														  //"log:"
+														  //"info"
+						  	  	  	  	  	  	  	  	  //"help"
 						idx = i;
 						break;
 					}
@@ -2007,8 +1946,6 @@ void defThread(void *argument)
 
 #ifdef SET_SMALL_FS
 	bool mnt = false;
-	uint32_t pg = 0, i;
-	uint32_t page_size = chipConf.PageSize;
 
 	#ifdef SET_FS_TEST
 		fs_err = io_fs_init();
@@ -2041,6 +1978,7 @@ void defThread(void *argument)
 		}
 	#endif
 	#ifdef SET_NAND_TEST
+		uint32_t page_size = chipConf.PageSize, pg = 0, i;
 		Report(0, "----------------------------------------%s", eol);
 		bool ok = true;
 		io_nand_block_erase(pg);
@@ -2191,23 +2129,13 @@ void defThread(void *argument)
 					}
 				break;
 				case cmdRead:
-				{
-					/*uint32_t p = (nandAdr - devAdr) / chipConf.PageSize;
-					NAND_AddressTypeDef addr = {
-						.Page = p,//(p % (chipConf.BlockSize / chipConf.PageSize)),
-						.Plane = 1,
-						.Block = nand_PageToBlock(p)
-					};
-					if (dbg != logOff) Report(1, "Read nand adr:0x%X len:%lu (page:%lu blk:%lu)%s",
-							  	  	  	  	  	  nandAdr, nandLen, addr.Page, addr.Block, eol);*/
 					if (rdBuf) {
-						io_nand_read(nandAdr - devAdr, rdBuf, chipConf.PageSize, 0);
-						//if (NAND_Read_Page_8b(nandPort, &addr, rdBuf, chipConf.PageSize, 0) == HAL_OK) {
+						io_nand_read(nandAdr - devAdr, rdBuf, nandLen, 0);
+						if (!(devError & devNAND)) {
 							nand_show = 1;
 							readed = true;
-						//} else devError |= devNAND;
+						}
 					}
-				}
 				break;
 				case cmdNext:
 					if (dbg != logOff) Report(1, "Read next nand adr:0x%X len:%lu%s", nandAdr, nandLen, eol);
@@ -2244,16 +2172,8 @@ void defThread(void *argument)
 				case cmdWrite:
 					if (wrBuf) {
 						uint32_t wadr = nandAdr - devAdr;
-						//uint32_t p = wadr / chipConf.PageSize;
-						//uint32_t b = nand_PageToBlock(p);
-						//NAND_AddressTypeDef addr = {
-						//	.Page = p,//(p % (chipConf.BlockSize / chipConf.PageSize)),
-						//	.Plane = 1,
-						//	.Block = b
-						//};
-						if (!pageIsEmpty(wadr)) {//nandPage)) {
+						if (!pageIsEmpty(wadr)) {
 							io_nand_block_erase(wadr);
-							//if (NAND_Erase_Block(nandPort, &addr, 1) != HAL_OK) devError |= devNAND;
 							sprintf(stx, "Erase nand addr:%lu done", wadr);
 						} else {
 							sprintf(stx, "Addr:%lu is Empty", wadr);
