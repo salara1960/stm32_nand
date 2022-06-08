@@ -101,7 +101,7 @@ int io_fs_init(void)
     _lfs_config.read_size   = page_size;
     _lfs_config.prog_size   = page_size;
     
-    _lfs_config.block_size  = io_nand_get_block_size();// * page_size;
+    _lfs_config.block_size  = io_nand_get_block_size() * page_size;
     _lfs_config.block_count = io_nand_get_block_number();
     
     _lfs_config.block_cycles = 100;

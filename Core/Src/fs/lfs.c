@@ -8,9 +8,6 @@
 #include "lfs_util.h"
 
 
-//extern uint8_t Report(const uint8_t addTime, const char *fmt, ...);
-
-
 
 #define LFS_BLOCK_NULL ((lfs_block_t)-1)
 #define LFS_BLOCK_INLINE ((lfs_block_t)-2)
