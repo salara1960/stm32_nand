@@ -135,11 +135,11 @@ typedef struct {
 //#define SET_SWV
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
-	#define SET_FS_TEST
+//	#define SET_FS_TEST
 //	#define SET_NAND_TEST
 #endif
 
-#define SIZE_PAGE 2048
+
 #define EMPTY 255
 #define MAX_CMDS       11//10//11//9//8
 #define MAX_LEN_DATA  512//256
