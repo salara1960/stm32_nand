@@ -151,7 +151,7 @@ bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1654978274;//1654862850;//1654856849;
+static uint32_t epoch = 1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
 //1652998677;//1652445122;//1652361110;//1652296740;//1652042430;//1652037111;
@@ -1045,27 +1045,56 @@ HAL_StatusTypeDef  NAND_Write_Page_8b(NAND_HandleTypeDef *hnand,
 	    		  nandaddress,
 	    		  pAddress->Page, pAddress->Plane, pAddress->Block, eol);
 
-	    if (nandaddress < (hnand->Config.BlockSize * hnand->Config.BlockNbr)) {
+	    //if (nandaddress < (hnand->Config.BlockSize * hnand->Config.BlockNbr)) {
+
 	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_A;
 	    	__DSB();
 	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_WRITE0;
 	    	__DSB();
-	    	//
-	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
-	    	__DSB();
-	    	if (hnand->Config.PageSize > 512U) {
-	    		*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
-	    		__DSB();
+
+	    	//-------------------------------------------------------------------------------------------
+	    	if ((hnand->Config.PageSize) <= 512U) {
+	    		if (((hnand->Config.BlockSize) * (hnand->Config.BlockNbr)) <= 65535U) {
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+	    			__DSB();
+	    	    } else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+	    	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
+	    	    	__DSB();
+	    	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+	    	    	__DSB();
+	    	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+	    	    	__DSB();
+	    	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+	    	    	__DSB();
+	    	    }
+	    	} else {/* (hnand->Config.PageSize) > 512 */
+	    		if (((hnand->Config.BlockSize) * (hnand->Config.BlockNbr)) <= 65535U) {
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset >> 8;//0x00U;
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+	    			__DSB();
+	    		} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset;//0x00U;
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = offset >> 8;//0x00U;
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+	    			__DSB();
+	    			*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+	    			__DSB();
+	    		}
 	    	}
-	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
-	    	__DSB();
-	    	*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
-	    	__DSB();
-	    	if ((hnand->Config.BlockSize * hnand->Config.BlockNbr) > 65535U) {
-	    		*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
-	    		__DSB();
-	    	}
-	    	//
+	    	//-------------------------------------------------------------------------------------------
 	    	// Write data to memory
 	    	for (uint32_t index = 0U; index < size; index++) {
 	    		*(__IO uint8_t *)deviceaddress = *(pBuffer + index);
@@ -1084,7 +1113,7 @@ HAL_StatusTypeDef  NAND_Write_Page_8b(NAND_HandleTypeDef *hnand,
 	    		}
 	    	}
 
-	    }
+	    //}
 
 	    hnand->State = HAL_NAND_STATE_READY;
 	    __HAL_UNLOCK(hnand);
