@@ -75,7 +75,8 @@ enum {
 	cmdLog,
 	cmdInfo,
 	cmdMem,
-	cmdHelp
+	cmdHelp,
+	cmdErr
 };
 
 enum {
@@ -140,10 +141,12 @@ typedef struct {
 #endif
 
 
+
 #define EMPTY 255
-#define MAX_CMDS       11//10//11//9//8
+#define MAX_CMDS      11//10//11//9//8
 #define MAX_LEN_DATA  512//256
 #define MAX_SCR_BUF  1024
+#define SIZE_PAGE 2048
 
 #define MAX_UART_BUF     (MAX_LEN_DATA << 2)//1024
 #define MAX_NAND_STATE   4
