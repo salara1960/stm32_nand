@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include "main.h"
-//#include "io_nand.h"
+//#include "main.h"
+#include "io_nand.h"
 
 
 //-----------------------Local variables and function-------------------------

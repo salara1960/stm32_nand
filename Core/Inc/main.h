@@ -137,7 +137,7 @@ typedef struct {
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
 //	#define SET_FS_TEST
-//	#define SET_NAND_TEST
+	#define SET_NAND_TEST
 #endif
 
 
@@ -222,19 +222,21 @@ void Error_Handler(void);
 #define NCE2_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
+
+extern uint8_t dbg;
 extern uint16_t devError;
 extern UART_HandleTypeDef *uartPort;
 extern SPI_HandleTypeDef *ipsPort;
 extern DMA_HandleTypeDef hdma_spi1_tx;
+extern NAND_HandleTypeDef *nandPort;
+extern HAL_NAND_StateTypeDef nandState;
+extern NAND_IDsTypeDef nandID;
 extern bool spiRdy;
+extern uint32_t devAdr;
+extern uint32_t total_pages;
+extern uint32_t total_bytes;
+extern s_chipConf chipConf;
 
-extern uint32_t io_nand_get_page_size(void);
-extern uint32_t io_nand_get_block_number(void);
-extern uint32_t io_nand_get_block_size(void);
-
-extern uint32_t io_nand_read(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offst);
-extern uint32_t io_nand_write(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offst);
-extern void io_nand_block_erase(uint32_t addr);
 
 /* USER CODE END Private defines */
 
