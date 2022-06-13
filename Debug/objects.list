@@ -1,5 +1,6 @@
 "./Core/Src/fonts.o"
 "./Core/Src/freertos.o"
+"./Core/Src/io_nand.o"
 "./Core/Src/main.o"
 "./Core/Src/st7789.o"
 "./Core/Src/stm32f4xx_hal_msp.o"

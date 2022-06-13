@@ -43,6 +43,7 @@
 /* Disk status */
 static volatile DSTATUS Stat = STA_NOINIT;
 
+#include "io_nand.h"
 
 /* USER CODE END DECL */
 
@@ -125,11 +126,12 @@ DRESULT USER_read (
 
 	/**/
 	DRESULT ret = RES_OK;
-	uint32_t ss = nand_getPageSize();
+	uint32_t ss = io_nand_get_page_size();
 	int i = -1;
 	while (++i < count) {
 		if (dbg > logOff) Report(1, "[%s] Dev:%u page:%u(%u) count:%u\r\n", __func__, pdrv, sector, ss, count);
-		ret |= nand_ReadPage(sector++, (BYTE *)buff);
+		//ret |= nand_ReadPage(sector++, (BYTE *)buff);
+		io_nand_read(sector++, (BYTE *)buff, ss, 0);
 	}
 	/**/
 
@@ -158,12 +160,13 @@ DRESULT USER_write (
 
 	/**/
 	DRESULT ret = RES_OK;
-	uint32_t ss = nand_getPageSize();
+	uint32_t ss = io_nand_get_page_size();
 	int i = -1;
 	while (++i < count) {
 		if (dbg > logOff) Report(1, "[%s] Dev:%u sector:%u(%u) count:%u\r\n", __func__, pdrv, sector, ss, count);
 		//if (!pageIsEmpty(sector)) nand_EraseBlock(nand_PageToBlock(sector));
-		ret |= nand_WritePage(sector++, (BYTE *)buff);
+		//ret |= nand_WritePage(sector++, (BYTE *)buff);
+		io_nand_write(sector++, (BYTE *)buff, ss, 0);
 	}
 	/**/
 
@@ -194,15 +197,15 @@ DRESULT USER_ioctl (
         		res = RES_OK;
         	break;
         	case GET_SECTOR_COUNT:
-        		*(DWORD *)buff = nand_getPageCount();//W25qxx_getSectorCount();
+        		*(DWORD *)buff = io_nand_get_block_size() * io_nand_get_block_number();//nand_getPageCount();//W25qxx_getSectorCount();
         		res = RES_OK;
         	break;
         	case GET_SECTOR_SIZE:
-        		*(DWORD *)buff = nand_getPageSize();//W25qxx_getSectorSize();
+        		*(DWORD *)buff = io_nand_get_page_size();//nand_getPageSize();//W25qxx_getSectorSize();
         		res = RES_OK;
         	break;
         	case GET_BLOCK_SIZE:
-        		*(DWORD *)buff = nand_getBlockSize();//W25qxx_getBlockSize();
+        		*(DWORD *)buff = io_nand_get_block_size() * io_nand_get_page_size();//nand_getBlockSize();//W25qxx_getBlockSize();
         		res = RES_OK;
         	break;
             	default :
