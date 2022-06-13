@@ -19,9 +19,9 @@
 // provided by the config file. To start, I would suggest copying lfs_util.h
 // and modifying as needed.
 #ifdef LFS_CONFIG
-#define LFS_STRINGIZE(x) LFS_STRINGIZE2(x)
-#define LFS_STRINGIZE2(x) #x
-#include LFS_STRINGIZE(LFS_CONFIG)
+	#define LFS_STRINGIZE(x) LFS_STRINGIZE2(x)
+	#define LFS_STRINGIZE2(x) #x
+	#include LFS_STRINGIZE(LFS_CONFIG)
 #else
 
 // System includes

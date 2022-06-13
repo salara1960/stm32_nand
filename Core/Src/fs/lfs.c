@@ -1665,8 +1665,8 @@ relocate:
     return 0;
 }
 
-static int lfs_dir_commit(lfs_t *lfs, lfs_mdir_t *dir,
-        const struct lfs_mattr *attrs, int attrcount) {
+static int lfs_dir_commit(lfs_t *lfs, lfs_mdir_t *dir, const struct lfs_mattr *attrs, int attrcount)
+{
     // check for any inline files that aren't RAM backed and
     // forcefully evict them, needed for filesystem consistency
     for (lfs_file_t *f = (lfs_file_t*)lfs->mlist; f; f = f->next) {
@@ -3512,7 +3512,7 @@ void cfg_prn(lfs_t *lfs, const struct lfs_config *cfg)
 }
 
 int lfs_format(lfs_t *lfs, const struct lfs_config *cfg) {
-	//cfg_prn(lfs, cfg);
+	cfg_prn(lfs, cfg);
 	/*LFS_TRACE("lfs_format(%p, %p\n{\n\t.context=%p, "
                 "\n\t.read=%p, \n\t.prog=%p, \n\t.erase=%p, \n\t.sync=%p, "
                 "\n\t.read_size=%"PRIu32", \n\t.prog_size=%"PRIu32", "
@@ -3566,8 +3566,7 @@ int lfs_format(lfs_t *lfs, const struct lfs_config *cfg) {
         err = lfs_dir_commit(lfs, &root, LFS_MKATTRS(
                 {LFS_MKTAG(LFS_TYPE_CREATE, 0, 0), NULL},
                 {LFS_MKTAG(LFS_TYPE_SUPERBLOCK, 0, 8), "littlefs"},
-                {LFS_MKTAG(LFS_TYPE_INLINESTRUCT, 0, sizeof(superblock)),
-                    &superblock}));
+                {LFS_MKTAG(LFS_TYPE_INLINESTRUCT, 0, sizeof(superblock)), &superblock}));
         if (err) {
             goto cleanup;
         }

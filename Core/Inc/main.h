@@ -136,8 +136,8 @@ typedef struct {
 //#define SET_SWV
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
-//	#define SET_FS_TEST
-	#define SET_NAND_TEST
+	#define SET_FS_TEST
+//	#define SET_NAND_TEST
 #endif
 
 

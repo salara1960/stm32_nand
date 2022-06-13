@@ -3,8 +3,7 @@
 
 #include "lfs.h"
 
-typedef struct 
-{
+typedef struct {
     lfs_file_t f;
 }io_fs_file;
 

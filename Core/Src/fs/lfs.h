@@ -48,7 +48,7 @@ typedef uint32_t lfs_block_t;
 // info struct. Limited to <= 1022. Stored in superblock and must be
 // respected by other littlefs drivers.
 #ifndef LFS_NAME_MAX
-#define LFS_NAME_MAX 255
+	#define LFS_NAME_MAX 255
 #endif
 
 // Maximum size of a file in bytes, may be redefined to limit to support other
@@ -57,13 +57,13 @@ typedef uint32_t lfs_block_t;
 // incorrect values due to using signed integers. Stored in superblock and
 // must be respected by other littlefs drivers.
 #ifndef LFS_FILE_MAX
-#define LFS_FILE_MAX 2147483647
+	#define LFS_FILE_MAX 2147483647
 #endif
 
 // Maximum size of custom attributes in bytes, may be redefined, but there is
 // no real benefit to using a smaller LFS_ATTR_MAX. Limited to <= 1022.
 #ifndef LFS_ATTR_MAX
-#define LFS_ATTR_MAX 1022
+	#define LFS_ATTR_MAX 1022
 #endif
 
 // Possible error codes, these are negative to allow
