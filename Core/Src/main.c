@@ -1121,11 +1121,12 @@ void showBuf(uint8_t type, bool rd, uint32_t adr, uint32_t len, const uint8_t *b
 int step = 32;
 uint32_t ind = 0;
 uint32_t max_ind = len;
+uint32_t ad = adr - devAdr;
 
 	if (type == 2) {
 		if (rd) {
-			ind = adr & (chipConf.PageSize - 1);// - devAdr;
-			//max_ind = chipConf.PageSize;
+			ind = ad & (chipConf.PageSize - 1);// - devAdr;
+			max_ind = ad + len;//chipConf.PageSize;
 		} else ind = max_ind;
 	}
 	if (ind < max_ind) {
@@ -1232,7 +1233,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							//if (nandAdr < devAdr) nandAdr = devAdr;
 							nandLen = 512;
 							nandAdr += nandLen;
-							check = true;
+							cmd_flag = 1;//check = true;
 						break;
 						case cmdWrite://"write:'0x0:0x55:256'" //adr:byte:len
 						{
