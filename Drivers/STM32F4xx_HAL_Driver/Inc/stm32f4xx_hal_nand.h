@@ -281,7 +281,13 @@ uint32_t              HAL_NAND_Read_Status(NAND_HandleTypeDef *hnand);
 
 /* Private types -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-/* Private constants ---------------------------------------------------------*/
+/* Private constants
+// NOTE: Redefine in stm32f4xx_hal_nand.h for Waveshare board
+//#define CMD_AREA                   ((uint32_t)(1U<<17U))  // A16 = CLE high
+//#define ADDR_AREA                  ((uint32_t)(1U<<16U))  // A17 = ALE high
+ *
+ * ---------------------------------------------------------*/
+
 /** @defgroup NAND_Private_Constants NAND Private Constants
   * @{
   */

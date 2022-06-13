@@ -735,23 +735,23 @@ static void MX_FSMC_Init(void)
   hnand1.Init.NandBank = FSMC_NAND_BANK2;
   hnand1.Init.Waitfeature = FSMC_NAND_PCC_WAIT_FEATURE_ENABLE;
   hnand1.Init.MemoryDataWidth = FSMC_NAND_PCC_MEM_BUS_WIDTH_8;
-  hnand1.Init.EccComputation = FSMC_NAND_ECC_DISABLE;
-  hnand1.Init.ECCPageSize = FSMC_NAND_ECC_PAGE_SIZE_256BYTE;
+  hnand1.Init.EccComputation = FSMC_NAND_ECC_ENABLE;//DISABLE;
+  hnand1.Init.ECCPageSize = FSMC_NAND_ECC_PAGE_SIZE_512BYTE;
   hnand1.Init.TCLRSetupTime = 0;
   hnand1.Init.TARSetupTime = 0;
   /* hnand1.Config */
   hnand1.Config.PageSize = 2048;
-  hnand1.Config.SpareAreaSize = 16;
+  hnand1.Config.SpareAreaSize = 64;//16;
   hnand1.Config.BlockSize = 64;//131072; (in pages)
   hnand1.Config.BlockNbr = 1024;
   hnand1.Config.PlaneNbr = 1;
   hnand1.Config.PlaneSize = 1024;// (in blocks) //134217728;
   hnand1.Config.ExtraCommandEnable = DISABLE;
   /* ComSpaceTiming */
-  ComSpaceTiming.SetupTime = 252;
-  ComSpaceTiming.WaitSetupTime = 252;
-  ComSpaceTiming.HoldSetupTime = 252;
-  ComSpaceTiming.HiZSetupTime = 252;
+  ComSpaceTiming.SetupTime = 252;//12
+  ComSpaceTiming.WaitSetupTime = 252;//18
+  ComSpaceTiming.HoldSetupTime = 252;//18
+  ComSpaceTiming.HiZSetupTime = 252;//6;
   /* AttSpaceTiming */
   AttSpaceTiming.SetupTime = 252;//18
   AttSpaceTiming.WaitSetupTime = 252;//12
@@ -1388,8 +1388,8 @@ void defThread(void *argument)
 	uint8_t nand_show = 0;
 	bool readed = false;
 	char cid[32] = {0};
-	uint32_t BlockSizeKB = (chipConf.BlockSize * chipConf.PageSize ) / 1024;
-	uint32_t PlaneSizeMB = chipConf.PlaneSize / 1024 / 1024;
+	uint32_t BlockSizeKB = (chipConf.BlockSize * chipConf.PageSize) / 1024;
+	uint32_t PlaneSizeMB = (chipConf.PlaneNbr * (chipConf.BlockSize * chipConf.PageSize * chipConf.BlockNbr)) / 1024 / 1024;
 	uint8_t *bid = (uint8_t *)&nandID.Maker_Id;
 	if (nandState == HAL_NAND_STATE_READY) {
 		if (nandID.Device_Id == chipIDcode) strncpy(cid, chipID, sizeof(cid));
