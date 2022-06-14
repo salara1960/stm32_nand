@@ -138,7 +138,7 @@ typedef struct {
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
 //	#define SET_FS_TEST
-//	#define SET_NAND_TEST
+	#define SET_NAND_TEST
 #endif
 
 
@@ -232,7 +232,7 @@ extern DMA_HandleTypeDef hdma_spi1_tx;
 extern NAND_HandleTypeDef *nandPort;
 extern HAL_NAND_StateTypeDef nandState;
 extern NAND_IDsTypeDef nandID;
-extern bool spiRdy;
+extern volatile bool spiRdy;
 extern uint32_t devAdr;
 extern uint32_t total_pages;
 extern uint32_t total_bytes;
