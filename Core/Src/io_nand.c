@@ -15,18 +15,7 @@
 	}
 #endif
 
-//-----------------------------------------------------------------------------------------
-/*
-uint32_t nand_PageToBlock(const uint32_t page)
-{
-    return (page * chipConf.PageSize) / chipConf.BlockSize;
-}
-//-------------------------------------------------------------------------------------------
-uint32_t nand_BlockToPage(const uint32_t blk)
-{
-	return (blk * chipConf.BlockSize) / chipConf.PageSize;
-}
-*/
+
 //-------------------------------------------------------------------------------------------
 void io_nand_init(NAND_HandleTypeDef *hnand)
 {
@@ -123,9 +112,9 @@ HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND
 	return HAL_OK;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_read_8b (uint32_t addr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_read_8b (uint32_t adr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
 {
-NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
+NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 
 
     if (nandPort->State == HAL_NAND_STATE_BUSY) return HAL_BUSY;
@@ -137,8 +126,8 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
     uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
 
     if (dbg > logOn)
-    	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu\r\n",
-    	    		      __func__, nandaddress, Address.Page, Address.Plane, Address.Block);
+        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%lu\r\n",
+        	    		      __func__, nandaddress, Address.Page, Address.Plane, Address.Block, offset);
 
 #ifdef SET_NAND_CMD
     bool tflag = true;
@@ -219,14 +208,14 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
     nandPort->State = HAL_NAND_STATE_READY;
     __HAL_UNLOCK(nandPort);
 
-    if (tflag) tmpPrint(__func__, tmpBuf, tmpLen);
+    if (tflag & (dbg > logOn)) tmpPrint(__func__, tmpBuf, tmpLen);
 
     return HAL_OK;
 }
 //-----------------------------------------------------------------------------
-uint32_t io_nand_write_8b(uint32_t addr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_write_8b(uint32_t adr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
 {
-NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
+NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 
 
     if (nandPort->State == HAL_NAND_STATE_BUSY) return HAL_BUSY;
@@ -238,8 +227,8 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
     uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
 
     if (dbg > logOn)
-    	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu\r\n",
-    	    	          __func__, nandaddress, Address.Page, Address.Plane, Address.Block);
+        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%lu\r\n",
+        	    	          __func__, nandaddress, Address.Page, Address.Plane, Address.Block, offset);
 
 #ifdef SET_NAND_CMD
     bool tflag = true;
@@ -319,14 +308,15 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
     nandPort->State = HAL_NAND_STATE_READY;
     __HAL_UNLOCK(nandPort);
 
-    if (tflag) tmpPrint(__func__, tmpBuf, tmpLen);
+    if (tflag & (dbg > logOn)) tmpPrint(__func__, tmpBuf, tmpLen);
 
     return HAL_OK;
 }
 //-----------------------------------------------------------------------------
-HAL_StatusTypeDef io_nand_erase_block(NAND_AddressTypeDef *pAddress)
+//HAL_StatusTypeDef io_nand_erase_block(NAND_AddressTypeDef *pAddress)
+HAL_StatusTypeDef io_nand_erase_block(uint32_t adr)
 {
-//NAND_AddressTypeDef Address = io_uint32_to_flash_adr(addr);
+NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 
 	if (nandPort->State == HAL_NAND_STATE_BUSY) {
 
@@ -338,12 +328,12 @@ HAL_StatusTypeDef io_nand_erase_block(NAND_AddressTypeDef *pAddress)
 		nandPort->State = HAL_NAND_STATE_BUSY;
 
 		uint32_t deviceaddress = devAdr;
-		uint32_t nandaddress = ARRAY_ADDRESS(pAddress, nandPort);
+		uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
 
 
 		if (dbg > logOn)
-			Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu\r\n",
-					  __func__, nandaddress, pAddress->Page, pAddress->Plane, pAddress->Block);
+					Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu\r\n",
+							  __func__, nandaddress, Address.Page, Address.Plane, Address.Block);
 
 #ifdef SET_NAND_CMD
     bool tflag = true;
@@ -373,7 +363,7 @@ HAL_StatusTypeDef io_nand_erase_block(NAND_AddressTypeDef *pAddress)
 		nandPort->State = HAL_NAND_STATE_READY;
 		__HAL_UNLOCK(nandPort);
 
-		if (tflag) tmpPrint(__func__, tmpBuf, tmpLen);
+		if (tflag & dbg) tmpPrint(__func__, tmpBuf, tmpLen);
 
 	} else {
 
@@ -389,39 +379,68 @@ uint32_t io_flash_adr_to_uint32(NAND_AddressTypeDef *adr)
 	return  ((adr->Plane * chipConf.PlaneSize) + (adr->Block * chipConf.BlockSize) + adr->Page);
 }
 //-----------------------------------------------------------------------------------------
-NAND_AddressTypeDef io_uint32_to_flash_adr(uint32_t addr)
+NAND_AddressTypeDef io_uint32_to_flash_adr(uint32_t adr)
 {
 NAND_AddressTypeDef a;
 
-	a.Plane = addr / chipConf.PlaneSize;
-	a.Block = (addr - a.Plane * chipConf.PlaneSize) / chipConf.BlockSize;
-	a.Page  = addr - (a.Plane * chipConf.PlaneSize) - (a.Block * chipConf.BlockSize);
+	a.Plane = adr / chipConf.PlaneSize;
+	a.Block = (adr - a.Plane * chipConf.PlaneSize) / chipConf.BlockSize;
+	a.Page  = adr - (a.Plane * chipConf.PlaneSize) - (a.Block * chipConf.BlockSize);
 
 	return a;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_read(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_read(uint32_t adr, uint8_t *buffer, uint32_t size, uint32_t offset)
 {
 
-	if (io_nand_read_8b(addr, buffer, size, 0) != HAL_OK) devError |= devNAND;
+	if (io_nand_read_8b(adr, buffer, size, offset) != HAL_OK) devError |= devNAND;
 
     return 0;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_write(uint32_t addr, uint8_t *buffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_write(uint32_t adr, uint8_t *buffer, uint32_t size, uint32_t offset)
 {
 
-	if (io_nand_write_8b(addr, buffer, size, offset) != HAL_OK) devError |= devNAND;
+	if (io_nand_write_8b(adr, buffer, size, offset) != HAL_OK) devError |= devNAND;
 
 	return 0;
 }
 //-----------------------------------------------------------------------------------------
-void io_nand_block_erase(uint32_t addr)
+void io_nand_block_erase(uint32_t adr)
 {
-NAND_AddressTypeDef nans = io_uint32_to_flash_adr(addr);
+//NAND_AddressTypeDef nans = io_uint32_to_flash_adr(addr);
 
-	if (io_nand_erase_block(&nans) != HAL_OK) devError |= devNAND;
+//	if (io_nand_erase_block(&nans) != HAL_OK) devError |= devNAND;
+
+	if (io_nand_erase_block(adr) != HAL_OK) devError |= devNAND;
 }
 //-----------------------------------------------------------------------------------------
+unsigned char io_nand_get_status()
+{
+unsigned char ret = 2;//STA_NODISK;
+
+
+	switch ((unsigned char)HAL_NAND_GetState(nandPort)) {
+		case HAL_NAND_STATE_RESET://     = 0x00U,  //NAND not yet initialized or disabled
+			ret = 1;
+		break;
+		case HAL_NAND_STATE_READY://     = 0x01U,  //NAND initialized and ready for use
+			ret = 0;
+		break;
+		//case HAL_NAND_STATE_BUSY://      = 0x02U,  //NAND internal process is ongoing
+		//case HAL_NAND_STATE_ERROR://     = 0x03U   //NAND error state
+		//break;
+	}
+//RES_OK = 0,		/* 0: Successful */
+//RES_ERROR,		/* 1: R/W Error */
+//RES_WRPRT,		/* 2: Write Protected */
+//RES_NOTRDY,		/* 3: Not Ready */
+//RES_PARERR		/* 4: Invalid Parameter */
+//#define STA_NOINIT		0x01	/* Drive not initialized */
+//#define STA_NODISK		0x02	/* No medium in the drive */
+//#define STA_PROTECT		0x04	/* Write protected */
+
+	return ret;
+}
 //-----------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------

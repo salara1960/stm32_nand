@@ -111,7 +111,9 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.5.2 (10.06.2022)";
 //const char *version = "ver.1.5.3 (11.06.2022)";//branch 'lfs'
 //const char *version = "ver.1.6 (12.06.2022)";//branch 'lfs' : move nand_functions in io_nand.c & io_nand.h
-const char *version = "ver.1.6.1 (13.06.2022)";//branch 'lfs'
+//const char *version = "ver.1.6.1 (13.06.2022)";//branch 'lfs'
+//const char *version = "ver.1.6.2 (14.06.2022)";//branch 'lfs'
+const char *version = "ver.1.6.3 (14.06.2022)";//branch 'lfs' add command 'CHECK:block'
 
 
 
@@ -124,6 +126,7 @@ const char *s_cmds[MAX_CMDS] = {
 		"write:",
 		"erase:",
 		"check:",
+		"CHECK:",
 		"log:",
 		"info",
 		"memory",
@@ -137,7 +140,8 @@ const char *str_cmds[MAX_CMDS] = {
 	"Next",
 	"Write",
 	"Erase",
-	"Check",
+	"CheckPage",
+	"CheckBlk",
 	"Log",
 	"Info",
 	"Memory",
@@ -155,7 +159,7 @@ bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1655119859;
+static uint32_t epoch = 1655207599;//1655201240;//1655119859;
 //1655049475;//1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
@@ -1121,12 +1125,12 @@ void showBuf(uint8_t type, bool rd, uint32_t adr, uint32_t len, const uint8_t *b
 int step = 32;
 uint32_t ind = 0;
 uint32_t max_ind = len;
-uint32_t ad = adr - devAdr;
+uint32_t addr = adr + devAdr;
 
 	if (type == 2) {
 		if (rd) {
-			ind = ad & (chipConf.PageSize - 1);// - devAdr;
-			max_ind = ad + len;//chipConf.PageSize;
+			ind = adr & (chipConf.PageSize - 1);// - devAdr;
+			max_ind = chipConf.PageSize;
 		} else ind = max_ind;
 	}
 	if (ind < max_ind) {
@@ -1135,7 +1139,7 @@ uint32_t ad = adr - devAdr;
 		if (len % step) sch++;
 		stx[0] = '\0';
 		while (!done) {
-			sprintf(stx+strlen(stx), "%08X ", (unsigned int)adr);
+			sprintf(stx+strlen(stx), "%08X ", (unsigned int)addr);
 			for (int i = 0; i < step; i++) {
 				sprintf(stx+strlen(stx), " %02X", *(buf + i + ind));
 				ix++;
@@ -1145,7 +1149,7 @@ uint32_t ad = adr - devAdr;
 				}
 			}
 			strcat(stx, eol);
-			adr += step;
+			addr += step;
 			ind += step;
 			sch--;
 			if (!sch) done = true;
@@ -1226,7 +1230,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							} else {
 								nandAdr = atol(uk);
 							}
-							nandAdr += devAdr;
+//							nandAdr += devAdr;
 							check = true;
 						break;
 						case cmdNext://"next";
@@ -1265,7 +1269,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								} else hex = false;
 								if (hex) nandByte = (uint8_t)hex2bin(ukb, strlen(ukb));
 								    else nandByte = (uint8_t)atol(ukb);
-								nandAdr += devAdr;
+//								nandAdr += devAdr;
 								check = true;
 							}
 						}
@@ -1279,10 +1283,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							}
 							cmd_flag = 1;
 						break;
-						case cmdCheck://"check:0" //check:page //(chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr
+						case cmdCheckPage://"check:0" //check:page //(chipConf.BlockSize / chipConf.PageSize) * chipConf.BlockNbr
+						case cmdCheckBlk:
 						{
+							uint32_t max_val = total_pages;
+							if (idx == cmdCheckBlk) {
+								max_val = chipConf.BlockNbr;
+							}
 							uint32_t page = atol(uk);
-							if (page < total_pages) {//128MB / 2K = 65536 - pages
+							if (page < max_val) {//128MB / 2K = 65536 - pages
 								nandPage = page;
 								cmd_flag = 1;
 							}
@@ -1305,16 +1314,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					}
 					qcmd.cmd = idx;
 					if (check) {
-						if ((nandAdr + nandLen) >= (total_bytes + devAdr)) {
+						if ((nandAdr + nandLen) >= total_bytes) {
 							nandLen = total_bytes - nandAdr - 1;
 						}
 						cmd_flag = 1;
 					}
-					/*
-					if (cmd_flag) {
-						if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, 5, 0)) != osOK) devError |= devQUE;
-					}
-					*/
 				}
 
 			}
@@ -1522,13 +1526,19 @@ void defThread(void *argument)
 	#endif
 #endif
 
+	uint32_t page_offset = 0;
+	uint32_t page_addr = 0;
 	bool loop = true;
 	bool led = false;
+
+	osStatus_t qs = osOK;
+	uint8_t prio = 0;
+	s_qcmd qcmd = {0};
+	qcmd.cmd = cmdHelp;
+	if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, prio, 5)) != osOK) devError |= devQUE;
+
 	uint32_t tmr = get_tmr(1);
 
-	s_qcmd qcmd = {0};
-	uint8_t prio = 0;
-	osStatus_t qs = osOK;
 
   /* Infinite loop */
 
@@ -1633,19 +1643,28 @@ void defThread(void *argument)
 					}
 				break;
 				case cmdRead:
-				//case cmdNext:
-					io_nand_read((nandAdr - devAdr) / chipConf.PageSize, rdBuf, MAX_LEN_DATA, 0);//nandLen, 0);
-					if (!(devError & devNAND)) {
-						//if (qcmd.cmd == cmdRead)
-							nand_show = 1;
-						//				    else nand_show = 2;
-						readed = true;
-					}
-				break;
 				case cmdNext:
+				{
+					if (qcmd.cmd == cmdRead) {
+						readed = true;
+						page_offset = 0;
+						page_addr = nandAdr;
+						nand_show = 1;
+					} else {
+						page_offset += nandLen;
+						if (!(page_offset % chipConf.PageSize)) {
+							page_offset = 0;
+							nandAdr = page_addr;
+						}
+						nand_show = 1;//2;
+					}
+					io_nand_read(page_addr / chipConf.PageSize, rdBuf, nandLen, page_offset);
+				}
+				break;
+				/*case cmdNext:
 					if (dbg != logOff) Report(1, "Read next nand adr:0x%X len:%lu%s", nandAdr, nandLen, eol);
 					nand_show = 2;
-				break;
+				break;*/
 				case cmdErase:
 					if (!qcmd.attr) {
 						uint32_t bk = nandBlk;// * chipConf.PageSize;
@@ -1664,36 +1683,56 @@ void defThread(void *argument)
 						stik = HAL_GetTick();
 					}
 				break;
-				case cmdCheck:
+				case cmdCheckPage://check page
 				{
 					uint32_t adr = nandPage * chipConf.PageSize;//nand_PageToBlock(nandPage);
-					if (!pageIsEmpty(adr)) {
-						if (dbg != logOff) Report(1, "Page:%lu in addr:%lu Not empty%s", nandPage, adr, eol);
+					if (!pageIsEmpty(nandPage)) {
+						if (dbg != logOff) Report(1, "Page:%lu in addr:0x%X Not empty%s", nandPage, adr, eol);
 					} else {
-						if (dbg != logOff) Report(1, "Page:%lu in addr:%lu is Empty%s", nandPage, adr, eol);
+						if (dbg != logOff) Report(1, "Page:%lu in addr:0x%X is Empty%s", nandPage, adr , eol);
+					}
+				}
+				break;
+				case cmdCheckBlk://check block
+				{
+					uint32_t pg, spg = chipConf.BlockSize * nandPage;//start page in block
+					bool ok = true;
+					byte = dbg;
+					dbg = logOff;
+					for (pg = spg; pg < (spg + chipConf.BlockSize); pg++) {
+						if (!pageIsEmpty(pg)) {
+							ok = false;
+							break;
+						}
+					}
+					dbg = byte;
+					if (dbg != logOff) {
+						if (ok) {
+							Report(1, "Block:%lu Page:%lu..%lu is Empty%s",
+									spg / chipConf.BlockSize, spg, spg + chipConf.BlockSize - 1, eol);
+						} else {
+							Report(1, "Block:%lu Page:%lu Not empty%s",
+									spg / chipConf.BlockSize, pg, eol);
+						}
 					}
 				}
 				break;
 				case cmdWrite:
 				{
-						uint32_t wadr = (nandAdr - devAdr) / chipConf.PageSize;
-						if (!pageIsEmpty(wadr)) {
-							io_nand_block_erase(wadr);
-							sprintf(stx, "Erase nand addr:%lu done", wadr);
-						} else {
-							sprintf(stx, "Addr:%lu is Empty", wadr);
-						}
-						if (dbg != logOff) Report(1, "%s%s", stx, eol);
-						memset(wrBuf, EMPTY, chipConf.PageSize);
-						uint32_t ofs = 0;//(nandAdr - devAdr) % chipConf.PageSize;
-						memset(wrBuf /* + ofs*/, nandByte, nandLen);
-						////showBuf(1, false, devAdr, 512,/*nandAdr, nandLen,*/ wrBuf);
-						//if (NAND_Write_Page_8b(nandPort, &addr, wrBuf, nandLen, ofs) != HAL_OK) devError |= devNAND;
-						//if (dbg != logOff) Report(1, "Write nand adr:0x%X byte:0x%02X len:%lu ofs:%lu (page:%lu blk:%lu)%s",
-						//	      	  	  	  	  	  nandAdr, nandByte, nandLen, ofs, addr.Page, addr.Block, eol);
-						io_nand_write(wadr, wrBuf, nandLen, ofs);
-						if (dbg != logOff) Report(1, "Write nand adr:0x%X byte:0x%02X len:%lu ofs:%lu%s",
-							      	  	  	  	  	  nandAdr, nandByte, nandLen, ofs, eol);
+					uint32_t wadr = nandAdr / chipConf.PageSize;
+					if (!pageIsEmpty(wadr)) {
+						io_nand_block_erase(wadr);
+						sprintf(stx, "Erase nand addr:%lu done", wadr + devAdr);
+					} else {
+						sprintf(stx, "Addr:%lu is Empty", wadr + devAdr);
+					}
+					if (dbg != logOff) Report(1, "%s%s", stx, eol);
+					memset(wrBuf, EMPTY, chipConf.PageSize);
+					uint32_t ofs = 0;//(nandAdr - devAdr) % chipConf.PageSize;
+					memset(wrBuf /* + ofs*/, nandByte, nandLen);
+					io_nand_write(wadr, wrBuf, nandLen, ofs);
+					if (dbg != logOff) Report(1, "Write nand adr:0x%X byte:0x%02X len:%lu ofs:%lu%s",
+												nandAdr + devAdr, nandByte, nandLen, ofs, eol);
 				}
 				break;
 			}
