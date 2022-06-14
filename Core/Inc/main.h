@@ -137,7 +137,7 @@ typedef struct {
 
 
 //#define SET_SWV
-//#define SET_FAT_FS
+#define SET_FAT_FS
 
 
 #define EMPTY         255

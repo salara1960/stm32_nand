@@ -100,8 +100,10 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    Stat = STA_NOINIT;
-    Stat &= ~STA_NOINIT;
+    //Stat = STA_NOINIT;
+    //Stat &= ~STA_NOINIT;
+    Stat = io_nand_get_status();
+    if (dbg > logOff) Report(1, "[%s] Dev:%u status:%u\r\n", __func__, pdrv, Stat);
 
     return Stat;
   /* USER CODE END STATUS */
