@@ -113,7 +113,8 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.6 (12.06.2022)";//branch 'lfs' : move nand_functions in io_nand.c & io_nand.h
 //const char *version = "ver.1.6.1 (13.06.2022)";//branch 'lfs'
 //const char *version = "ver.1.6.2 (14.06.2022)";//branch 'lfs'
-const char *version = "ver.1.6.3 (14.06.2022)";//branch 'lfs' add command 'CHECK:block'
+//const char *version = "ver.1.6.3 (14.06.2022)";//branch 'lfs' add command 'CHECK:block'
+const char *version = "ver.1.6.4 (15.06.2022)";//branch 'lfs' edit time's periods for FSMC
 
 
 
@@ -159,7 +160,7 @@ volatile bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1655207599;//1655201240;//1655119859;
+static uint32_t epoch = 1655329667;//1655207599;//1655201240;//1655119859;
 //1655049475;//1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
@@ -739,10 +740,10 @@ static void MX_FSMC_Init(void)
   hnand1.Init.NandBank = FSMC_NAND_BANK2;
   hnand1.Init.Waitfeature = FSMC_NAND_PCC_WAIT_FEATURE_ENABLE;
   hnand1.Init.MemoryDataWidth = FSMC_NAND_PCC_MEM_BUS_WIDTH_8;
-  hnand1.Init.EccComputation = FSMC_NAND_ECC_ENABLE;//DISABLE;
+  hnand1.Init.EccComputation = FSMC_NAND_ECC_DISABLE;
   hnand1.Init.ECCPageSize = FSMC_NAND_ECC_PAGE_SIZE_512BYTE;
   hnand1.Init.TCLRSetupTime = 0;
-  hnand1.Init.TARSetupTime = 0;
+  hnand1.Init.TARSetupTime = 1;//0;
   /* hnand1.Config */
   hnand1.Config.PageSize = 2048;
   hnand1.Config.SpareAreaSize = 64;//16;
@@ -752,15 +753,15 @@ static void MX_FSMC_Init(void)
   hnand1.Config.PlaneSize = 1024;// (in blocks) //134217728;
   hnand1.Config.ExtraCommandEnable = DISABLE;
   /* ComSpaceTiming */
-  ComSpaceTiming.SetupTime = 252;//12
-  ComSpaceTiming.WaitSetupTime = 252;//18
-  ComSpaceTiming.HoldSetupTime = 252;//18
-  ComSpaceTiming.HiZSetupTime = 252;//6;
+  ComSpaceTiming.SetupTime = 2;//252;//12
+  ComSpaceTiming.WaitSetupTime = 3;//252;//18
+  ComSpaceTiming.HoldSetupTime = 2;//252;//18
+  ComSpaceTiming.HiZSetupTime = 1;//252;//6;
   /* AttSpaceTiming */
-  AttSpaceTiming.SetupTime = 252;//18
-  AttSpaceTiming.WaitSetupTime = 252;//12
-  AttSpaceTiming.HoldSetupTime = 252;//12
-  AttSpaceTiming.HiZSetupTime = 252;//6
+  AttSpaceTiming.SetupTime = 2;//252;//18
+  AttSpaceTiming.WaitSetupTime = 3;//252;//12
+  AttSpaceTiming.HoldSetupTime = 2;//252;//12
+  AttSpaceTiming.HiZSetupTime = 1;//252;//6
 
   if (HAL_NAND_Init(&hnand1, &ComSpaceTiming, &AttSpaceTiming) != HAL_OK)
   {
@@ -1517,7 +1518,7 @@ void defThread(void *argument)
 	#endif
 #endif
 
-	uint32_t page_offset = 0;
+	uint16_t page_offset = 0;
 	uint32_t page_addr = 0;
 	bool loop = true;
 	bool led = false;
@@ -1715,10 +1716,10 @@ void defThread(void *argument)
 					}
 					if (dbg != logOff) Report(1, "%s%s", stx, eol);
 					memset(wrBuf, EMPTY, chipConf.PageSize);
-					uint32_t ofs = 0;//(nandAdr - devAdr) % chipConf.PageSize;
+					uint16_t ofs = 0;//(nandAdr - devAdr) % chipConf.PageSize;
 					memset(wrBuf /* + ofs*/, nandByte, nandLen);
 					io_nand_write(wadr, wrBuf, nandLen, ofs);
-					if (dbg != logOff) Report(1, "Write nand adr:0x%X byte:0x%02X len:%lu ofs:%lu%s",
+					if (dbg != logOff) Report(1, "Write nand adr:0x%X byte:0x%02X len:%lu ofs:%u%s",
 												nandAdr + devAdr, nandByte, nandLen, ofs, eol);
 				}
 				break;

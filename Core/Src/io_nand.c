@@ -112,7 +112,7 @@ HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND
 	return HAL_OK;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_read_8b (uint32_t adr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_read_8b (uint32_t adr, uint8_t *pBuffer, uint32_t size, uint16_t offset)
 {
 NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 
@@ -126,7 +126,7 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
     uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
 
     if (dbg > logOn)
-        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%lu\r\n",
+        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%u\r\n",
         	    		      __func__, nandaddress, Address.Page, Address.Plane, Address.Block, offset);
 
 #ifdef SET_NAND_CMD
@@ -213,7 +213,7 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
     return HAL_OK;
 }
 //-----------------------------------------------------------------------------
-uint32_t io_nand_write_8b(uint32_t adr, uint8_t *pBuffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_write_8b(uint32_t adr, uint8_t *pBuffer, uint32_t size, uint16_t offset)
 {
 NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 
@@ -227,7 +227,7 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
     uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
 
     if (dbg > logOn)
-        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%lu\r\n",
+        	    	Report(1, "[%s] nand_adr:0x%X page:%lu plane:%lu block:%lu offset:%u\r\n",
         	    	          __func__, nandaddress, Address.Page, Address.Plane, Address.Block, offset);
 
 #ifdef SET_NAND_CMD
@@ -390,7 +390,7 @@ NAND_AddressTypeDef a;
 	return a;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_read(uint32_t adr, uint8_t *buffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_read(uint32_t adr, uint8_t *buffer, uint32_t size, uint16_t offset)
 {
 
 	if (io_nand_read_8b(adr, buffer, size, offset) != HAL_OK) devError |= devNAND;
@@ -398,7 +398,7 @@ uint32_t io_nand_read(uint32_t adr, uint8_t *buffer, uint32_t size, uint32_t off
     return 0;
 }
 //-----------------------------------------------------------------------------------------
-uint32_t io_nand_write(uint32_t adr, uint8_t *buffer, uint32_t size, uint32_t offset)
+uint32_t io_nand_write(uint32_t adr, uint8_t *buffer, uint32_t size, uint16_t offset)
 {
 
 	if (io_nand_write_8b(adr, buffer, size, offset) != HAL_OK) devError |= devNAND;
