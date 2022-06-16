@@ -60,7 +60,7 @@ stm32_nand.list \
 
 # All Target
 all:
-	+@$(MAKE) --no-print-directory main-build && $(MAKE) --no-print-directory post-build
+	+@$(MAKE) --no-print-directory pre-build && $(MAKE) --no-print-directory main-build && $(MAKE) --no-print-directory post-build
 
 # Main-build Target
 main-build: stm32_nand.elf secondary-outputs
@@ -86,6 +86,10 @@ clean:
 	-$(RM) default.size.stdout stm32_nand.elf stm32_nand.list stm32_nand.map
 	-@echo ' '
 
+pre-build:
+	arm-none-eabi-gcc -v
+	-@echo ' '
+
 post-build:
 	arm-none-eabi-objcopy -O ihex "stm32_nand.elf" "stm32_nand.hex"
 	arm-none-eabi-objcopy -O binary "stm32_nand.elf" "stm32_nand.bin"
@@ -101,6 +105,6 @@ fail-specified-linker-script-missing:
 warn-no-linker-script-specified:
 	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
 
-.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified post-build
+.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified pre-build post-build
 
 -include ../makefile.targets

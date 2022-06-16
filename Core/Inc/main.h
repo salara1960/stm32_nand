@@ -137,9 +137,11 @@ typedef struct {
 //#define SET_SWV
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
-//	#define SET_FS_TEST
-	#define SET_NAND_TEST
+	#define SET_FS_TEST
+//	#define SET_NAND_TEST
 #endif
+
+#define SET_AUDIO_DAC
 
 
 
@@ -153,6 +155,7 @@ typedef struct {
 #define MAX_NAND_STATE   4
 #define MAX_NAND_BUF   8192
 
+
 #define LOOP_FOREVER() while(1) { HAL_Delay(1); }
 #define HTONS(x) ((uint16_t)((x >> 8) | ((x << 8) & 0xff00)))
 
@@ -161,6 +164,11 @@ typedef struct {
 	#define MAX_TMP_SIZE 256
 #endif
 
+#ifdef SET_AUDIO_DAC
+	#define CS43L22           0x1C
+	#define AUDIO_CTL_ADDRESS 0x94
+	#define AUDIO_ID_REG         1
+#endif
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -221,6 +229,10 @@ void Error_Handler(void);
 #define NWAIT_GPIO_Port GPIOD
 #define NCE2_Pin GPIO_PIN_7
 #define NCE2_GPIO_Port GPIOD
+#define Audio_SCL_Pin GPIO_PIN_6
+#define Audio_SCL_GPIO_Port GPIOB
+#define Audio_SDA_Pin GPIO_PIN_9
+#define Audio_SDA_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 
@@ -238,7 +250,11 @@ extern uint32_t total_pages;
 extern uint32_t total_bytes;
 extern s_chipConf chipConf;
 
-
+#ifdef SET_AUDIO_DAC
+	extern I2C_HandleTypeDef *audioCtlPort;
+	extern volatile bool i2cTxRdy;
+	extern volatile bool i2cRxRdy;
+#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

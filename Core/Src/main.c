@@ -53,7 +53,11 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- RTC_HandleTypeDef hrtc;
+ I2C_HandleTypeDef hi2c1;
+DMA_HandleTypeDef hdma_i2c1_rx;
+DMA_HandleTypeDef hdma_i2c1_tx;
+
+RTC_HandleTypeDef hrtc;
 
 SPI_HandleTypeDef hspi1;
 DMA_HandleTypeDef hdma_spi1_tx;
@@ -70,7 +74,7 @@ osThreadId_t defTaskHandle;
 const osThreadAttr_t defTask_attributes = {
   .name = "defTask",
   .stack_size = 1024 * 4,
-  .priority = (osPriority_t)osPriorityNormal,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for myQue */
 osMessageQueueId_t myQueHandle;
@@ -114,8 +118,12 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.6.1 (13.06.2022)";//branch 'lfs'
 //const char *version = "ver.1.6.2 (14.06.2022)";//branch 'lfs'
 //const char *version = "ver.1.6.3 (14.06.2022)";//branch 'lfs' add command 'CHECK:block'
-const char *version = "ver.1.6.4 (15.06.2022)";//branch 'lfs' edit time's periods for FSMC
-
+//const char *version = "ver.1.6.4 (15.06.2022)";//branch 'lfs' edit time's periods for FSMC
+#ifdef SET_AUDIO_DAC
+	const char *version = "ver.1.6.5 16.06.22 (with audio)";//branch 'lfs' add support audio DAC (i2c)
+#else
+	const char *version = "ver.1.6.5 16.06.22";//branch 'lfs' add i2c1
+#endif
 
 
 const char *eol = "\r\n";
@@ -160,7 +168,7 @@ volatile bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1655329667;//1655207599;//1655201240;//1655119859;
+static uint32_t epoch = 1655399885;//1655329667;//1655207599;//1655201240;//1655119859;
 //1655049475;//1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
@@ -210,6 +218,17 @@ char stx[MAX_UART_BUF];
 #endif
 
 
+#ifdef SET_AUDIO_DAC
+	volatile bool i2cTxRdy = true;
+	volatile bool i2cRxRdy = true;
+	I2C_HandleTypeDef *audioCtlPort = &hi2c1;
+	uint8_t audioID = 0;
+	uint8_t audioRev = 0;
+	HAL_StatusTypeDef audioStat;
+	const char *audioChipName = "CS43L22";
+	char audioName[8] = {0};
+#endif
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -221,6 +240,7 @@ static void MX_RTC_Init(void);
 static void MX_FSMC_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_I2C1_Init(void);
 void defThread(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -233,6 +253,9 @@ void set_Date(uint32_t usec);
 uint32_t getSecRTC(RTC_HandleTypeDef *hrtc);
 int sec2str(char *st);
 uint8_t Report(const uint8_t addTime, const char *fmt, ...);
+#ifdef SET_AUDIO_DAC
+	HAL_StatusTypeDef audioInit();
+#endif
 //uint32_t nand_PageToBlock(const uint32_t page);
 //uint32_t nand_BlockToPage(const uint32_t blk);
 
@@ -327,6 +350,7 @@ int main(void)
   MX_FSMC_Init();
   MX_USART3_UART_Init();
   MX_SPI1_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -349,8 +373,17 @@ int main(void)
   ST7789_Reset();
   ST7789_Init(back_color);
 
-#if defined(SET_FS_TEST) || defined(SET_NAND_TEST)
+//#if defined(SET_FS_TEST) || defined(SET_NAND_TEST)
   dbg = logDump;
+//#endif
+
+#ifdef SET_AUDIO_DAC
+  if ((audioStat = audioInit()) == HAL_OK) {
+	  if (audioID == CS43L22)
+		  strcpy(audioName, audioChipName);
+	  else
+		  strcpy(audioName, "Unknown");
+  }
 #endif
 
   /* USER CODE END 2 */
@@ -376,7 +409,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of myQue */
-  myQueHandle = osMessageQueueNew (16, sizeof(s_qcmd), &myQue_attributes);
+  myQueHandle = osMessageQueueNew (16, sizeof(uint16_t), &myQue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -403,9 +436,9 @@ int main(void)
 
     LOOP_FOREVER();
 
-  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-  /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
 }
 
@@ -452,6 +485,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -646,9 +713,15 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
   /* DMA1_Stream3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
   /* DMA2_Stream3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 3, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
@@ -743,25 +816,25 @@ static void MX_FSMC_Init(void)
   hnand1.Init.EccComputation = FSMC_NAND_ECC_DISABLE;
   hnand1.Init.ECCPageSize = FSMC_NAND_ECC_PAGE_SIZE_512BYTE;
   hnand1.Init.TCLRSetupTime = 0;
-  hnand1.Init.TARSetupTime = 1;//0;
+  hnand1.Init.TARSetupTime = 1;
   /* hnand1.Config */
   hnand1.Config.PageSize = 2048;
-  hnand1.Config.SpareAreaSize = 64;//16;
-  hnand1.Config.BlockSize = 64;//131072; (in pages)
+  hnand1.Config.SpareAreaSize = 64;
+  hnand1.Config.BlockSize = 64;
   hnand1.Config.BlockNbr = 1024;
   hnand1.Config.PlaneNbr = 1;
-  hnand1.Config.PlaneSize = 1024;// (in blocks) //134217728;
+  hnand1.Config.PlaneSize = 1024;
   hnand1.Config.ExtraCommandEnable = DISABLE;
   /* ComSpaceTiming */
-  ComSpaceTiming.SetupTime = 2;//252;//12
-  ComSpaceTiming.WaitSetupTime = 3;//252;//18
-  ComSpaceTiming.HoldSetupTime = 2;//252;//18
-  ComSpaceTiming.HiZSetupTime = 1;//252;//6;
+  ComSpaceTiming.SetupTime = 2;
+  ComSpaceTiming.WaitSetupTime = 3;
+  ComSpaceTiming.HoldSetupTime = 2;
+  ComSpaceTiming.HiZSetupTime = 1;
   /* AttSpaceTiming */
-  AttSpaceTiming.SetupTime = 2;//252;//18
-  AttSpaceTiming.WaitSetupTime = 3;//252;//12
-  AttSpaceTiming.HoldSetupTime = 2;//252;//12
-  AttSpaceTiming.HiZSetupTime = 1;//252;//6
+  AttSpaceTiming.SetupTime = 2;
+  AttSpaceTiming.WaitSetupTime = 3;
+  AttSpaceTiming.HoldSetupTime = 2;
+  AttSpaceTiming.HiZSetupTime = 1;
 
   if (HAL_NAND_Init(&hnand1, &ComSpaceTiming, &AttSpaceTiming) != HAL_OK)
   {
@@ -1154,6 +1227,40 @@ uint32_t addr = adr + devAdr;
 	}
 }
 //-------------------------------------------------------------------------------------------
+#ifdef SET_AUDIO_DAC
+//-------------------------------------------------------------------------------------------
+HAL_StatusTypeDef audioReadRegs(uint8_t reg, uint8_t *buf, uint8_t len)
+{
+HAL_StatusTypeDef ret = HAL_OK;
+
+	ret |= HAL_I2C_Master_Transmit(audioCtlPort, AUDIO_CTL_ADDRESS, &reg, 1, 250);
+	ret |= HAL_I2C_Master_Receive(audioCtlPort, AUDIO_CTL_ADDRESS, buf, len, 1000);
+
+	return ret;
+}
+//-------------------------------------------------------------------------------------------
+HAL_StatusTypeDef audioInit()
+{
+HAL_StatusTypeDef ret = HAL_OK;
+uint8_t byte = 0;
+
+	if ((ret = HAL_I2C_IsDeviceReady(audioCtlPort, AUDIO_CTL_ADDRESS, 3, 1000)) != HAL_OK) return ret;
+
+	//i2cTxRdy = 0;
+	//if ((ret = HAL_I2C_Master_Transmit_DMA(audioCtlPort, AUDIO_CTL_ADDRESS, dat, sizeof(dat))) != HAL_OK) devError |= devI2C;
+	//while (HAL_I2C_GetState(audioCtlPort) != HAL_I2C_STATE_READY) {}
+
+
+	if (audioReadRegs(AUDIO_ID_REG, &byte, 1) == HAL_OK) {
+		audioID = byte >> 3;
+		audioRev = byte & 7;
+	}
+
+	return ret;
+}
+//-------------------------------------------------------------------------------------------
+#endif
+//-------------------------------------------------------------------------------------------
 //                        CallBack Functions
 //-------------------------------------------------------------------------------------------
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -1347,7 +1454,28 @@ void HAL_NAND_ITCallback(NAND_HandleTypeDef *hnand)
 	cb_nandCounter++;
 }
 //-------------------------------------------------------------------------------------------
+#ifdef SET_AUDIO_DAC
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
+	if (hi2c->Instance == I2C1) {
+		devError |= devI2C;
+	}
+}
 //-------------------------------------------------------------------------------------------
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+	if (hi2c->Instance == I2C1) {
+		i2cTxRdy = true;
+	}
+}
+//-------------------------------------------------------------------------------------------
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+	if (hi2c->Instance == I2C1) {
+		i2cRxRdy = true;
+	}
+}
+#endif
 //-------------------------------------------------------------------------------------------
 
 /* USER CODE END 4 */
@@ -1401,6 +1529,9 @@ void defThread(void *argument)
 					chipConf.PlaneNbr,
 					PlaneSizeMB,
 					total_pages, total_bytes);
+#ifdef SET_AUDIO_DAC
+		if (audioStat == HAL_OK) sprintf(stx+strlen(stx), "\n\tAudio: '%s' (id:%u rev:%u)", audioName, audioID, audioRev);
+#endif
 	} else {
 			sprintf(stx, "NAND: Error nandStatus='%s'(%d)",
 					     nandAllState[nandState & (MAX_NAND_STATE - 1)], nandState);
@@ -1423,6 +1554,9 @@ void defThread(void *argument)
 			chipConf.BlockNbr,
 			chipConf.PlaneNbr,
 			PlaneSizeMB);
+#ifdef SET_AUDIO_DAC
+	if (audioStat == HAL_OK) sprintf(screen+strlen(screen), "\nAudio: '%s'", audioName);
+#endif
 	if (cb_nandCounter) sprintf(screen+strlen(screen), "\nCallBack:%lu", cb_nandCounter);
 	ST7789_WriteString(0,
 					   tFont->height + (tFont->height * 0.85),
@@ -1616,6 +1750,9 @@ void defThread(void *argument)
 											chipConf.PlaneNbr,
 											PlaneSizeMB,
 											total_pages, total_bytes);
+#ifdef SET_AUDIO_DAC
+						if (audioStat == HAL_OK) sprintf(stx+strlen(stx), "\n\tAudio: '%s' (id:%u rev:%u)", audioName, audioID, audioRev);
+#endif
 						Report(1, "%s%s", stx, eol);
 					}
 				break;
