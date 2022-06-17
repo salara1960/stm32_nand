@@ -112,6 +112,26 @@ HAL_StatusTypeDef NAND_Read_ID(NAND_HandleTypeDef *hnand, NAND_IDsTypeDef *pNAND
 	return HAL_OK;
 }
 //-----------------------------------------------------------------------------------------
+uint32_t io_nand_read_status(NAND_HandleTypeDef *hnand)
+{
+
+	UNUSED(hnand);
+
+	uint32_t deviceaddress = devAdr;
+
+	*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_STATUS;
+
+	uint32_t data = *(__IO uint8_t *)deviceaddress;
+
+	if ((data & NAND_ERROR) == NAND_ERROR) {
+		return NAND_ERROR;
+	} else if ((data & NAND_READY) == NAND_READY) {
+		return NAND_READY;
+	} else {
+		return NAND_BUSY;
+	}
+}
+//-----------------------------------------------------------------------------------------
 uint32_t io_nand_read_8b (uint32_t adr, uint8_t *pBuffer, uint32_t size, uint16_t offset)
 {
 NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
@@ -374,6 +394,225 @@ NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
 	return HAL_OK;
 }
 //-----------------------------------------------------------------------------------------
+HAL_StatusTypeDef io_nand_read_spare_8b(uint32_t adr, uint8_t *pBuffer, uint32_t NumSpareAreaToRead)
+{
+
+	if (nandPort->State == HAL_NAND_STATE_BUSY) {
+		return HAL_BUSY;
+	} else if (nandPort->State == HAL_NAND_STATE_READY) {
+		__HAL_LOCK(nandPort);
+		nandPort->State = HAL_NAND_STATE_BUSY;
+
+		NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
+
+		//uint32_t numsparearearead = 0U;
+		uint32_t nbspare = NumSpareAreaToRead;
+		uint32_t deviceaddress = devAdr;
+		uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
+
+		/* Column in page address */
+		uint32_t columnaddress = COLUMN_ADDRESS(nandPort);
+
+		/* Spare area(s) read loop */
+		while ((nbspare != 0U) && (nandaddress < ((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)))) {
+			if ((nandPort->Config.PageSize) <= 512U) {
+				/* Send read spare area command sequence */
+				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_C;
+				__DSB();
+
+				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+					__DSB();
+				}
+			} else {/* (hnand->Config.PageSize) > 512 */
+				/* Send read spare area command sequence */
+				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_A;
+				__DSB();
+
+				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_1ST_CYCLE(columnaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_2ND_CYCLE(columnaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_1ST_CYCLE(columnaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_2ND_CYCLE(columnaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+					__DSB();
+					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+					__DSB();
+				}
+			}
+
+			*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_TRUE1;
+			__DSB();
+
+			if (nandPort->Config.ExtraCommandEnable == ENABLE) {
+				uint32_t tickstart = HAL_GetTick();
+				while (HAL_NAND_Read_Status(nandPort) != NAND_READY) {
+					if ((HAL_GetTick() - tickstart) > NAND_WRITE_TIMEOUT) {
+						nandPort->State = HAL_NAND_STATE_ERROR;
+						__HAL_UNLOCK(nandPort);
+						return HAL_TIMEOUT;
+					}
+				}
+
+				/* Go back to read mode */
+				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = ((uint8_t)0x00);
+				__DSB();
+			}
+
+			/* Get Data into Buffer */
+			uint8_t *buff = pBuffer;
+			for (uint32_t index = 0U; index < nandPort->Config.SpareAreaSize; index++) {
+				*buff++ = *(uint8_t *)deviceaddress;
+			}
+
+			//numsparearearead++;
+			nbspare--;
+			nandaddress = (uint32_t)(nandaddress + 1U);
+		}//while
+
+
+		nandPort->State = HAL_NAND_STATE_READY;
+		__HAL_UNLOCK(nandPort);
+	} else {
+		return HAL_ERROR;
+	}
+
+	return HAL_OK;
+}
+//-----------------------------------------------------------------------------------------
+HAL_StatusTypeDef io_nand_write_spare_8b(uint32_t adr, uint8_t *pBuffer, uint32_t NumSpareAreaTowrite)
+{
+
+  	if (nandPort->State == HAL_NAND_STATE_BUSY) {
+  		return HAL_BUSY;
+  	} else if (nandPort->State == HAL_NAND_STATE_READY) {
+  		__HAL_LOCK(nandPort);
+  		nandPort->State = HAL_NAND_STATE_BUSY;
+
+  		NAND_AddressTypeDef Address = io_uint32_to_flash_adr(adr);
+
+  		uint32_t deviceaddress = devAdr;
+  		uint32_t nandaddress = ARRAY_ADDRESS(&Address, nandPort);
+
+  		//uint32_t numspareareawritten = 0U;
+  		uint32_t nbspare = NumSpareAreaTowrite;
+  		uint32_t columnaddress = COLUMN_ADDRESS(nandPort);
+
+  		/* Spare area(s) write loop */
+  		while ((nbspare != 0U) && (nandaddress < ((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)))) {
+  			/* Cards with page size <= 512 bytes */
+  			if ((nandPort->Config.PageSize) <= 512U) {
+  				/* Send write Spare area command sequence */
+  				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_C;
+  				__DSB();
+  				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_WRITE0;
+  				__DSB();
+
+  				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+  					__DSB();
+  				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = 0x00U;
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+  					__DSB();
+  				}
+  			} else {/* (hnand->Config.PageSize) > 512 */
+  				/* Send write Spare area command sequence */
+  				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_AREA_A;
+  				__DSB();
+  				*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_WRITE0;
+  				__DSB();
+
+  				if (((nandPort->Config.BlockSize) * (nandPort->Config.BlockNbr)) <= 65535U) {
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_1ST_CYCLE(columnaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_2ND_CYCLE(columnaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+  					__DSB();
+  				} else {/* ((hnand->Config.BlockSize)*(hnand->Config.BlockNbr)) > 65535 */
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_1ST_CYCLE(columnaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = COLUMN_2ND_CYCLE(columnaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_1ST_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_2ND_CYCLE(nandaddress);
+  					__DSB();
+  					*(__IO uint8_t *)((uint32_t)(deviceaddress | ADDR_AREA)) = ADDR_3RD_CYCLE(nandaddress);
+  					__DSB();
+  				}
+  			}
+
+  			/* Write data to memory */
+  			uint8_t *buff = pBuffer;
+  			for (uint32_t index = 0U; index < nandPort->Config.SpareAreaSize; index++) {
+  				*(__IO uint8_t *)deviceaddress = *buff++;
+  				__DSB();
+  			}
+
+  			*(__IO uint8_t *)((uint32_t)(deviceaddress | CMD_AREA)) = NAND_CMD_WRITE_TRUE1;
+  			__DSB();
+
+  			uint32_t tickstart = HAL_GetTick();
+
+  			while (HAL_NAND_Read_Status(nandPort) != NAND_READY) {
+  				if ((HAL_GetTick() - tickstart) > NAND_WRITE_TIMEOUT) {
+  					nandPort->State = HAL_NAND_STATE_ERROR;
+  					__HAL_UNLOCK(nandPort);
+  					return HAL_TIMEOUT;
+  				}
+  			}
+
+  			//numspareareawritten++;
+  			nbspare--;
+  			nandaddress = (uint32_t)(nandaddress + 1U);
+  		}
+
+  		nandPort->State = HAL_NAND_STATE_READY;
+  		__HAL_UNLOCK(nandPort);
+  	} else {
+  		return HAL_ERROR;
+  	}
+
+  	return HAL_OK;
+}
+//-----------------------------------------------------------------------------------------
 uint32_t io_flash_adr_to_uint32(NAND_AddressTypeDef *adr)
 {
 	return  ((adr->Plane * chipConf.PlaneSize) + (adr->Block * chipConf.BlockSize) + adr->Page);
@@ -398,10 +637,25 @@ uint32_t io_nand_read(uint32_t adr, uint8_t *buffer, uint32_t size, uint16_t off
     return 0;
 }
 //-----------------------------------------------------------------------------------------
+uint32_t io_nand_read_spare(uint32_t adr, uint8_t *buffer, uint32_t count)
+{
+	if (io_nand_read_spare_8b(adr, buffer, 1) != HAL_OK) devError |= devNAND;
+
+	return 0;
+}
+//-----------------------------------------------------------------------------------------
 uint32_t io_nand_write(uint32_t adr, uint8_t *buffer, uint32_t size, uint16_t offset)
 {
 
 	if (io_nand_write_8b(adr, buffer, size, offset) != HAL_OK) devError |= devNAND;
+
+	return 0;
+}
+//-----------------------------------------------------------------------------------------
+uint32_t io_nand_write_spare(uint32_t adr, uint8_t *buffer, uint32_t count)
+{
+
+	if (io_nand_write_spare_8b(adr, buffer, 1) != HAL_OK) devError |= devNAND;
 
 	return 0;
 }
@@ -442,5 +696,4 @@ unsigned char ret = 2;//STA_NODISK;
 
 	return ret;
 }
-//-----------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------

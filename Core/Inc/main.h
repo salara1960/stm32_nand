@@ -65,18 +65,20 @@ enum {
 };
 
 enum {
-	cmdRestart = 0,
+	cmdHelp = 0,
+	cmdRestart,
 	cmdEpoch,
 	cmdRead,
 	cmdNext,
 	cmdWrite,
 	cmdErase,
+	cmdReadECC,
+	cmdWriteECC,
 	cmdCheckPage,
 	cmdCheckBlk,
 	cmdLog,
 	cmdInfo,
 	cmdMem,
-	cmdHelp,
 	cmdErr
 };
 
@@ -137,19 +139,19 @@ typedef struct {
 //#define SET_SWV
 #define SET_SMALL_FS
 #ifdef SET_SMALL_FS
-	#define SET_FS_TEST
+//	#define SET_FS_TEST
 //	#define SET_NAND_TEST
 #endif
 
-#define SET_AUDIO_DAC
+//#define SET_AUDIO_DAC
 
 
 
 #define EMPTY 255
-#define MAX_CMDS       12//11//10//11//9//8
+#define MAX_CMDS       15//14//12//11//10//11//9//8
 #define MAX_LEN_DATA  512//256
 #define MAX_SCR_BUF  1024
-#define SIZE_PAGE 2048
+#define SIZE_PAGE    2048
 
 #define MAX_UART_BUF     (MAX_LEN_DATA << 2)//1024
 #define MAX_NAND_STATE   4

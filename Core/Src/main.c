@@ -120,42 +120,51 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.6.3 (14.06.2022)";//branch 'lfs' add command 'CHECK:block'
 //const char *version = "ver.1.6.4 (15.06.2022)";//branch 'lfs' edit time's periods for FSMC
 #ifdef SET_AUDIO_DAC
-	const char *version = "ver.1.6.5 16.06.22 (with audio)";//branch 'lfs' add support audio DAC (i2c)
+	//const char *version = "ver.1.6.5 16.06.22 (with audio)";//branch 'lfs' add support audio DAC (i2c)
+	const char *version = "ver.1.6.6 17.06.22 (with audio)";//branch 'lfs'
 #else
-	const char *version = "ver.1.6.5 16.06.22";//branch 'lfs' add i2c1
+	//const char *version = "ver.1.6.5 16.06.22";//branch 'lfs' add i2c1
+	const char *version = "ver.1.6.6 17.06.22";//branch 'lfs'
 #endif
 
 
 const char *eol = "\r\n";
 const char *s_cmds[MAX_CMDS] = {
+		"help",
 		"restart",
 		"epoch:",
 		"read:",
 		"next",
 		"write:",
 		"erase:",
+		"rdecc:",
+		"wrecc:",
 		"check:",
 		"CHECK:",
 		"log:",
 		"info",
 		"memory",
-		"help"};
+		"inputerr"};
 uint16_t devError;
 uint8_t cmd_flag = 0;
 const char *str_cmds[MAX_CMDS] = {
+	"Help",
 	"Restart",
 	"Epoch",
 	"Read",
 	"Next",
 	"Write",
 	"Erase",
+	"ReadECC",
+	"WriteECC",
 	"CheckPage",
 	"CheckBlk",
 	"Log",
 	"Info",
 	"Memory",
-	"Help"
+	"InputErr"
 };
+
 
 volatile static uint32_t secCounter = 0;//period 1s
 volatile static uint64_t msCounter = 0;//period 250ms
@@ -168,7 +177,8 @@ volatile bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1655399885;//1655329667;//1655207599;//1655201240;//1655119859;
+static uint32_t epoch = 1655482039;//1655469857;
+//1655399885;//1655329667;//1655207599;//1655201240;//1655119859;
 //1655049475;//1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
 //1654606136;//1654546759;//1654544747;
@@ -256,8 +266,7 @@ uint8_t Report(const uint8_t addTime, const char *fmt, ...);
 #ifdef SET_AUDIO_DAC
 	HAL_StatusTypeDef audioInit();
 #endif
-//uint32_t nand_PageToBlock(const uint32_t page);
-//uint32_t nand_BlockToPage(const uint32_t blk);
+
 
 /* USER CODE END PFP */
 
@@ -368,7 +377,7 @@ int main(void)
 
   HAL_UART_Receive_IT(logPort, &rxByte, 1);
 
-  //set_Date(epoch);
+  set_Date(epoch);
 
   ST7789_Reset();
   ST7789_Init(back_color);
@@ -813,7 +822,7 @@ static void MX_FSMC_Init(void)
   hnand1.Init.NandBank = FSMC_NAND_BANK2;
   hnand1.Init.Waitfeature = FSMC_NAND_PCC_WAIT_FEATURE_ENABLE;
   hnand1.Init.MemoryDataWidth = FSMC_NAND_PCC_MEM_BUS_WIDTH_8;
-  hnand1.Init.EccComputation = FSMC_NAND_ECC_DISABLE;
+  hnand1.Init.EccComputation = FSMC_NAND_ECC_ENABLE;//DISABLE;
   hnand1.Init.ECCPageSize = FSMC_NAND_ECC_PAGE_SIZE_512BYTE;
   hnand1.Init.TCLRSetupTime = 0;
   hnand1.Init.TARSetupTime = 1;
@@ -845,7 +854,17 @@ static void MX_FSMC_Init(void)
 
   	  io_nand_init(&hnand1);
 
+
+
 /*
+  ComSpaceTiming.SetupTime = 2;
+  ComSpaceTiming.WaitSetupTime = 3;
+  ComSpaceTiming.HoldSetupTime = 2;
+  ComSpaceTiming.HiZSetupTime = 1;
+  AttSpaceTiming.SetupTime = 2;
+  AttSpaceTiming.WaitSetupTime = 3;
+  AttSpaceTiming.HoldSetupTime = 2;
+  AttSpaceTiming.HiZSetupTime = 1;
 //nand->cfg.page_size     = hwnand->Config.PageSize; // Page size (2048 for K9GAG08U0E )
 //nand->cfg.block_number  = hwnand->Config.BlockNbr; // Total Number of block in plane (1024 K9GAG08U0E )
 //nand->cfg.block_size    = hwnand->Config.BlockSize; // Block size (In page) (64 K9GAG08U0E )
@@ -1276,23 +1295,30 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			cmd_flag = 0;
 			s_qcmd qcmd = {0};
 			int8_t idx = -1;
-			if (strlen(rxBuf) >= 4) {
+			if (strlen(rxBuf) > 2) {
 				for (int8_t i = 0; i < MAX_CMDS; i++) {
-					if ((uk = strstr(rxBuf, s_cmds[i]))) {//const char *s_cmds ="restart"
+					if (!(strncmp(rxBuf, s_cmds[i], strlen(s_cmds[i])))) {
+						                                  //"help"
+						                                  //"restart"
 														  //"epoch:"
 														  //"read:0x4549ABBB:256"
 						                                  //"next"
 														  //"write:0x0:0x0:0xf0:256"//adr:[offset:]byte:len
 														  //"erase:"
+														  //"rdecc:"
+						  	  	  	  	  	  	  	  	  //"wrecc:"
 														  //"check:"
+						                                  //"CHECK:"
 														  //"log:"
 														  //"info"
-						  	  	  	  	  	  	  	  	  //"help"
+														  //"memory"
+						                                  //"inputerr"
 						idx = i;
+						uk = rxBuf;
 						break;
 					}
 				}
-				if ((uk == rxBuf) && (idx != -1)) {
+				if (idx != -1) {
 					nandLen = MAX_LEN_DATA;//256;
 					uk += strlen(s_cmds[idx]);
 					char *uki = NULL, *uke = NULL, *ukb = NULL;
@@ -1301,6 +1327,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						case cmdInfo:
 						case cmdRestart:
 						case cmdMem:
+						case cmdErr:
 							cmd_flag = 1;
 						break;
 						case cmdEpoch:
@@ -1319,6 +1346,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							cmd_flag = 1;
 						break;
 						case cmdRead://"read:0x4549ABBB:256";
+						case cmdReadECC:
 							uki = strchr(uk, ':');
 							if (uki) {
 								nandLen = atol(uki + 1);
@@ -1331,6 +1359,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							} else {
 								nandAdr = atol(uk);
 							}
+							if (idx == cmdReadECC) nandLen = chipConf.SpareAreaSize;
 							check = true;
 						break;
 						case cmdNext://"next";
@@ -1338,6 +1367,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 							cmd_flag = 1;
 						break;
 						case cmdWrite://"write:'0x0:0x55:256'" //adr:byte:len
+						case cmdWriteECC://"wrecc:0:12"
 						{
 							bool hex = false;
 							uki = strstr(uk, "0x");
@@ -1367,6 +1397,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 								} else hex = false;
 								if (hex) nandByte = (uint8_t)hex2bin(ukb, strlen(ukb));
 								    else nandByte = (uint8_t)atol(ukb);
+								if (idx == cmdWriteECC) nandLen = chipConf.SpareAreaSize;
 								check = true;
 							}
 						}
@@ -1417,18 +1448,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						cmd_flag = 1;
 					}
 				}
-
 			}
-			if (idx == -1) {
-				qcmd.cmd = cmdErr;
+			if (!cmd_flag) {
 				cmd_flag = 1;
+				qcmd.cmd = cmdErr;
 			}
 			if (cmd_flag) {
 				if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, 5, 0)) != osOK) devError |= devQUE;
 			}
-
+			//
 			ruk = 0;
 			*rxBuf = '\0';
+			//
 		}
 
 		HAL_UART_Receive_IT(huart, &rxByte, 1);
@@ -1661,8 +1692,10 @@ void defThread(void *argument)
 	uint8_t prio = 0;
 	s_qcmd qcmd = {0};
 
-//	qcmd.cmd = cmdHelp;
-//	if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, prio, 5)) != osOK) devError |= devQUE;
+
+	qcmd.cmd = cmdHelp;
+	if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, prio, 5)) != osOK) devError |= devQUE;
+
 
 	uint32_t tmr = get_tmr(1);
 
@@ -1709,11 +1742,13 @@ void defThread(void *argument)
 				if (dbg != logOff) Report(1, "OS: %s%s", get_qStat(qStat), eol);
 			}
 		} else {
+			uint16_t ccolor = CYAN;
+			if (qcmd.cmd == cmdErr) ccolor = MAGENTA;
 			sprintf(screen, "Cmd: %s", str_cmds[qcmd.cmd]);
 			ST7789_WriteString(0, ST7789_WIDTH - (fntKey->height << 1),
 							   mkLineCenter(screen, ST7789_WIDTH / fntKey->width),
 							   *fntKey,
-							   CYAN,
+							   ccolor,
 							   BLACK);
 			//
 			if (dbg > logOn)
@@ -1774,8 +1809,9 @@ void defThread(void *argument)
 				break;
 				case cmdRead:
 				case cmdNext:
+				case cmdReadECC:
 				{
-					if (qcmd.cmd == cmdRead) {
+					if ((qcmd.cmd == cmdRead) || (qcmd.cmd == cmdReadECC)) {
 						readed = true;
 						page_offset = 0;
 						page_addr = nandAdr;
@@ -1786,7 +1822,12 @@ void defThread(void *argument)
 							nandAdr = page_addr;
 						}
 					}
-					io_nand_read(page_addr / chipConf.PageSize, rdBuf, nandLen, page_offset);
+					if (qcmd.cmd == cmdReadECC) {
+						readed = false;
+						io_nand_read_spare(page_addr / chipConf.PageSize, rdBuf, 1);
+					} else {
+						io_nand_read(page_addr / chipConf.PageSize, rdBuf, nandLen, page_offset);
+					}
 					nand_show = 1;
 				}
 				break;
@@ -1843,6 +1884,7 @@ void defThread(void *argument)
 				}
 				break;
 				case cmdWrite:
+				//case cmdWriteECC:
 				{
 					uint32_t wadr = nandAdr / chipConf.PageSize;
 					if (!pageIsEmpty(wadr)) {
