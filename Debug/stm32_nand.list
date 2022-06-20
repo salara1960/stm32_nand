@@ -37,11 +37,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00007d16  00000000  00000000  00065118  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0002ab82  00000000  00000000  0006ce2e  2**0
+ 17 .debug_line   0002ab7f  00000000  00000000  0006ce2e  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000e9cb5  00000000  00000000  000979b0  2**0
+ 18 .debug_str    000e9cb5  00000000  00000000  000979ad  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  00181665  2**0
+ 19 .comment      00000050  00000000  00000000  00181662  2**0
                   CONTENTS, READONLY
  20 .debug_ranges 00002470  00000000  00000000  001816b8  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -6767,7 +6767,7 @@ void defThread(void *argument)
  8003218:	4960      	ldr	r1, [pc, #384]	; (800339c <defThread+0x1ac>)
  800321a:	2000      	movs	r0, #0
  800321c:	f7ff fbde 	bl	80029dc <Report>
-		Report(1, "%s Старт '%s' FreeRTOS memory: free=%lu heap=%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+		Report(1, "%s Старт '%s' FreeRTOS memory: heap/free=%lu/%lu bytes%s", version, __func__, configTOTAL_HEAP_SIZE, xPortGetFreeHeapSize(), eol);
  8003220:	4b5f      	ldr	r3, [pc, #380]	; (80033a0 <defThread+0x1b0>)
  8003222:	681c      	ldr	r4, [r3, #0]
  8003224:	f00b fa96 	bl	800e754 <xPortGetFreeHeapSize>
@@ -6775,9 +6775,9 @@ void defThread(void *argument)
  800322a:	4b5b      	ldr	r3, [pc, #364]	; (8003398 <defThread+0x1a8>)
  800322c:	681b      	ldr	r3, [r3, #0]
  800322e:	9302      	str	r3, [sp, #8]
- 8003230:	f44f 4380 	mov.w	r3, #16384	; 0x4000
- 8003234:	9301      	str	r3, [sp, #4]
- 8003236:	9200      	str	r2, [sp, #0]
+ 8003230:	9201      	str	r2, [sp, #4]
+ 8003232:	f44f 4380 	mov.w	r3, #16384	; 0x4000
+ 8003236:	9300      	str	r3, [sp, #0]
  8003238:	4b5a      	ldr	r3, [pc, #360]	; (80033a4 <defThread+0x1b4>)
  800323a:	4622      	mov	r2, r4
  800323c:	495a      	ldr	r1, [pc, #360]	; (80033a8 <defThread+0x1b8>)
@@ -7162,18 +7162,15 @@ void defThread(void *argument)
  800356e:	f2a3 4375 	subw	r3, r3, #1141	; 0x475
  8003572:	2200      	movs	r2, #0
  8003574:	701a      	strb	r2, [r3, #0]
-	s_qcmd qcmd = {0};
+	s_qcmd qcmd = {cmdHelp, 0};
  8003576:	f507 6390 	add.w	r3, r7, #1152	; 0x480
  800357a:	f5a3 638f 	sub.w	r3, r3, #1144	; 0x478
  800357e:	2200      	movs	r2, #0
- 8003580:	801a      	strh	r2, [r3, #0]
-
-
-	qcmd.cmd = cmdHelp;
+ 8003580:	701a      	strb	r2, [r3, #0]
  8003582:	f507 6390 	add.w	r3, r7, #1152	; 0x480
  8003586:	f5a3 638f 	sub.w	r3, r3, #1144	; 0x478
  800358a:	2200      	movs	r2, #0
- 800358c:	701a      	strb	r2, [r3, #0]
+ 800358c:	705a      	strb	r2, [r3, #1]
 	if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, prio, 5)) != osOK) devError |= devQUE;
  800358e:	4b43      	ldr	r3, [pc, #268]	; (800369c <defThread+0x4ac>)
  8003590:	6818      	ldr	r0, [r3, #0]
@@ -7538,7 +7535,7 @@ void defThread(void *argument)
  80038b2:	a201      	add	r2, pc, #4	; (adr r2, 80038b8 <defThread+0x6c8>)
  80038b4:	f852 f023 	ldr.w	pc, [r2, r3, lsl #2]
  80038b8:	08003905 	.word	0x08003905
- 80038bc:	08003973 	.word	0x08003973
+ 80038bc:	08003975 	.word	0x08003975
  80038c0:	08003a87 	.word	0x08003a87
  80038c4:	08003b31 	.word	0x08003b31
  80038c8:	08003b31 	.word	0x08003b31
@@ -7600,25 +7597,25 @@ void defThread(void *argument)
 				break;
  8003956:	e2db      	b.n	8003f10 <defThread+0xd20>
 				case cmdMem:
-					Report(1, "FreeRTOS memory: free=%lu heap=%lu bytes%s", xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+					Report(1, "FreeRTOS memory: heap/free=%lu/%lu bytes%s", configTOTAL_HEAP_SIZE, xPortGetFreeHeapSize(), eol);
  8003958:	f00a fefc 	bl	800e754 <xPortGetFreeHeapSize>
  800395c:	4602      	mov	r2, r0
  800395e:	4b0a      	ldr	r3, [pc, #40]	; (8003988 <defThread+0x798>)
  8003960:	681b      	ldr	r3, [r3, #0]
  8003962:	9300      	str	r3, [sp, #0]
- 8003964:	f44f 4380 	mov.w	r3, #16384	; 0x4000
- 8003968:	4914      	ldr	r1, [pc, #80]	; (80039bc <defThread+0x7cc>)
- 800396a:	2001      	movs	r0, #1
- 800396c:	f7ff f836 	bl	80029dc <Report>
+ 8003964:	4613      	mov	r3, r2
+ 8003966:	f44f 4280 	mov.w	r2, #16384	; 0x4000
+ 800396a:	4914      	ldr	r1, [pc, #80]	; (80039bc <defThread+0x7cc>)
+ 800396c:	2001      	movs	r0, #1
+ 800396e:	f7ff f835 	bl	80029dc <Report>
 				break;
- 8003970:	e2ce      	b.n	8003f10 <defThread+0xd20>
+ 8003972:	e2cd      	b.n	8003f10 <defThread+0xd20>
 				case cmdRestart:
 					loop = false;
- 8003972:	2300      	movs	r3, #0
- 8003974:	f887 3467 	strb.w	r3, [r7, #1127]	; 0x467
+ 8003974:	2300      	movs	r3, #0
+ 8003976:	f887 3467 	strb.w	r3, [r7, #1127]	; 0x467
 		  		break;
- 8003978:	e2ca      	b.n	8003f10 <defThread+0xd20>
- 800397a:	bf00      	nop
+ 800397a:	e2c9      	b.n	8003f10 <defThread+0xd20>
  800397c:	20000098 	.word	0x20000098
  8003980:	20002600 	.word	0x20002600
  8003984:	20000082 	.word	0x20000082

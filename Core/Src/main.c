@@ -121,10 +121,12 @@ const osSemaphoreAttr_t binSem_attributes = {
 //const char *version = "ver.1.6.4 (15.06.2022)";//branch 'lfs' edit time's periods for FSMC
 #ifdef SET_AUDIO_DAC
 	//const char *version = "ver.1.6.5 16.06.22 (with audio)";//branch 'lfs' add support audio DAC (i2c)
-	const char *version = "ver.1.6.6 17.06.22 (with audio)";//branch 'lfs'
+	//const char *version = "ver.1.6.6 17.06.22 (with audio)";//branch 'lfs'
+	const char *version = "ver.1.6.7 20.06.22 (with audio)";//branch 'lfs'
 #else
 	//const char *version = "ver.1.6.5 16.06.22";//branch 'lfs' add i2c1
-	const char *version = "ver.1.6.6 17.06.22";//branch 'lfs'
+	//const char *version = "ver.1.6.6 17.06.22";//branch 'lfs'
+	const char *version = "ver.1.6.7 20.06.22";//branch 'lfs'
 #endif
 
 
@@ -177,7 +179,7 @@ volatile bool spiRdy = true;
 bool setDate = false;
 uint8_t tZone = 0;//2;
 uint8_t dbg = logOn;
-static uint32_t epoch = 1655482039;//1655469857;
+static uint32_t epoch = 1655720230;//1655482039;//1655469857;
 //1655399885;//1655329667;//1655207599;//1655201240;//1655119859;
 //1655049475;//1654982035;//1654978274;//1654862850;//1654856849;
 //1654777849;//1654720159;//1654694859;//1654694232;//1654614048;//1654613449;
@@ -1533,7 +1535,7 @@ void defThread(void *argument)
 	HAL_Delay(500);
 	if (dbg != logOff) {
 		Report(0, "%s", eol);
-		Report(1, "%s Старт '%s' FreeRTOS memory: free=%lu heap=%lu bytes%s", version, __func__, xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+		Report(1, "%s Старт '%s' FreeRTOS memory: heap/free=%lu/%lu bytes%s", version, __func__, configTOTAL_HEAP_SIZE, xPortGetFreeHeapSize(), eol);
 	}
 
 	uint8_t byte = logOff;
@@ -1690,10 +1692,7 @@ void defThread(void *argument)
 
 	osStatus_t qs = osOK;
 	uint8_t prio = 0;
-	s_qcmd qcmd = {0};
-
-
-	qcmd.cmd = cmdHelp;
+	s_qcmd qcmd = {cmdHelp, 0};
 	if ((qStat = osMessageQueuePut(myQueHandle, (void *)&qcmd, prio, 5)) != osOK) devError |= devQUE;
 
 
@@ -1765,7 +1764,7 @@ void defThread(void *argument)
 					Report(1, "%s", stx);
 				break;
 				case cmdMem:
-					Report(1, "FreeRTOS memory: free=%lu heap=%lu bytes%s", xPortGetFreeHeapSize(), configTOTAL_HEAP_SIZE, eol);
+					Report(1, "FreeRTOS memory: heap/free=%lu/%lu bytes%s", configTOTAL_HEAP_SIZE, xPortGetFreeHeapSize(), eol);
 				break;
 				case cmdRestart:
 					loop = false;
